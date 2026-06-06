@@ -1,0 +1,55 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python build / cache
+**/__pycache__
+**/*.py[cod]
+**/*$py.class
+.venv
+.venv/
+**/.venv
+venv/
+**/venv
+.uv-cache/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Runtime / local data
+workspace/
+**/workspace
+*.log
+*.tar
+*.tar.gz
+last_stream.txt
+body.json
+
+# Tests & fixtures (not needed in image)
+tests/
+scripts/
+
+# Docs / editor
+README.md
+docs/
+postman/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore

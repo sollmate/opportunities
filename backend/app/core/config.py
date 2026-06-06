@@ -12,8 +12,16 @@ class Settings(BaseSettings):
     # Allowed CORS origins for the browser frontend (comma-separated in env).
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
-    # Placeholder token accepted by the auth stub. Replace with real auth.
-    dev_auth_token: str = "dev-secret-token"
+    # Microsoft Entra ID (Azure AD) configuration. The directory (tenant) ID and
+    # the application (client) ID of the single app registration that serves both
+    # the web client and this API. Incoming access tokens are validated against
+    # these (issuer, audience, tid).
+    azure_tenant_id: str = ""
+    azure_client_id: str = ""
+
+    # App role a user must be assigned to access the application. Enforced
+    # against the `roles` claim of the validated access token.
+    azure_required_role: str = "opportunities.access"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

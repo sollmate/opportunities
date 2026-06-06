@@ -1,0 +1,191 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4789-90ab-cdef01234567",
+    "name": "Tax-Advisory Deep Agent",
+    "description": "Endpoints for the German tax-advisory Deep Agent (FastAPI). Upload a DATEV CSV/XLS to create a session, then chat with the supervisor via Server-Sent Events.\n\n## Quick start\n1. Start the API: `uv run uvicorn src.api.main:app --reload --port 8000`\n2. Run **Health** — expect `{\"status\":\"ok\"}`.\n3. Run **Create session** — the test script saves `session_id` into the `session_id` collection variable.\n4. Run **Send message (SSE)** — Postman shows the raw `event:` / `data:` stream in the response body.\n\n## SSE in Postman\nPostman renders an SSE response as raw text (it does not parse `event:`/`data:` lines). Each event terminates with a blank line. Use **Send and Download** for long streams or switch to **Raw** view.\n\n## Variables\n- `base_url` — default `http://127.0.0.1:8000`\n- `session_id` — populated automatically by the Create-session test script\n- `datev_file_path` — absolute or relative path to a DATEV CSV/XLS on disk (Postman cannot send a file from a URL)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Meta",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness probe. Returns `{\"status\":\"ok\"}`."
+          },
+          "response": []
+        },
+        {
+          "name": "OpenAPI schema",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/openapi.json",
+              "host": ["{{base_url}}"],
+              "path": ["openapi.json"]
+            },
+            "description": "Full OpenAPI 3 schema for the API."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "item": [
+        {
+          "name": "Create session (upload DATEV)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('returns session_id', () => pm.expect(body.session_id).to.be.a('string'));",
+                  "pm.collectionVariables.set('session_id', body.session_id);",
+                  "console.log('session_id =', body.session_id, 'skr =', body.skr_variant, 'rows =', body.ledger_rows);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "datev_file",
+                  "type": "file",
+                  "src": "{{datev_file_path}}",
+                  "description": "DATEV EXTF Buchungsstapel CSV or Excel file."
+                },
+                {
+                  "key": "master_data_file",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true,
+                  "description": "Optional JSON with master data (legal_form, skr_variant, prior_year_net_turnover, …)."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/tax-advisory/session",
+              "host": ["{{base_url}}"],
+              "path": ["tax-advisory", "session"]
+            },
+            "description": "Ingest a DATEV export, normalize it to the virtual ledger, detect SKR03/SKR04, and create an in-memory session. Returns:\n```json\n{\n  \"session_id\": \"…\",\n  \"ledger_rows\": 0,\n  \"skr_variant\": \"SKR03\",\n  \"master_data_complete\": false,\n  \"missing_fields\": [\"legal_form\", \"prior_year_net_turnover\", …]\n}\n```\nThe test script stores `session_id` into the collection variable of the same name so the next request can use it.\n\n**File field**: in Postman, click the `datev_file` row and pick a file from disk (the `src` is templated to `{{datev_file_path}}` for convenience but Postman will let you override it inline)."
+          },
+          "response": []
+        },
+        {
+          "name": "Send message (SSE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('content-type is event-stream', () => pm.expect(pm.response.headers.get('Content-Type') || '').to.include('text/event-stream'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept",       "value": "text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Berechne den Gesamtumsatz und prüfe Kleinunternehmerstatus nach §19 UStG.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tax-advisory/session/{{session_id}}/message",
+              "host": ["{{base_url}}"],
+              "path": ["tax-advisory", "session", "{{session_id}}", "message"]
+            },
+            "description": "Stream the supervisor agent's reasoning, tool calls, and final answer as Server-Sent Events. Event types emitted:\n\n| event        | data                                                                 |\n|--------------|----------------------------------------------------------------------|\n| `token`      | streamed text/tool-call chunks from the model                        |\n| `tool_start` | `{ \"tool\": \"<tool_name>\" }`                                          |\n| `tool_end`   | `{ \"tool\": \"<tool_name>\" }`                                          |\n| `final`      | `{ \"content\": <final assistant message content list> }`              |\n| `error`      | `{ \"error\": \"…\" }`                                                   |\n| `done`       | `[DONE]` — always sent last                                          |\n\nThe session is in-memory only; restarting uvicorn invalidates `session_id`."
+          },
+          "response": []
+        },
+        {
+          "name": "Send message — follow-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept",       "value": "text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Welche SKR-Variante wurde erkannt und welche Konten kommen vor?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tax-advisory/session/{{session_id}}/message",
+              "host": ["{{base_url}}"],
+              "path": ["tax-advisory", "session", "{{session_id}}", "message"]
+            },
+            "description": "Same endpoint as above; reuses the stored `session_id` so the agent has prior conversation context."
+          },
+          "response": []
+        },
+        {
+          "name": "Send message — provide master data",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept",       "value": "text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Stammdaten: legal_form=Einzelunternehmer, skr_variant=SKR03, prior_year_net_turnover=18000, current_year_turnover=22000, prior_year_profit=5000, prior_year_vat_liability=0, current_vat_rhythm=quarterly, balance_sheet_total=12000, employees_avg=1.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tax-advisory/session/{{session_id}}/message",
+              "host": ["{{base_url}}"],
+              "path": ["tax-advisory", "session", "{{session_id}}", "message"]
+            },
+            "description": "Example of feeding the interview answers back to the agent in plain text so it can complete the §19 UStG check."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "datev_file_path",
+      "value": "tests/fixtures/tc01_kleinunternehmer_under.csv",
+      "type": "string",
+      "description": "Local path Postman uses for the formdata file field. Override per environment."
+    }
+  ]
+}

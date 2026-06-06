@@ -14,6 +14,7 @@ node_modules/
 next-env.d.ts
 .next/
 out/
+*.tsbuildinfo
 .env.local
 .env*.local
 npm-debug.log*

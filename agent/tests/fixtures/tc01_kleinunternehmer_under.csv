@@ -1,0 +1,4 @@
+"EXTF";700;21;"Buchungsstapel";11;20260101120000000;;"RE";"";"";12345;67890;20250101;4;20250101;20251231;"PoC";"tt";1;0;0;"EUR";;;;;;"";""
+Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext
+1190,00;H;EUR;;;;8400;1200;;20250115;RE001;;;Beratung Januar
+2380,00;H;EUR;;;;8400;1200;;20250220;RE002;;;Beratung Februar
