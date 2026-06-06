@@ -2,8 +2,14 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4789-90ab-cdef01234567",
     "name": "Tax-Advisory Deep Agent",
-    "description": "Endpoints for the German tax-advisory Deep Agent (FastAPI). Upload a DATEV CSV/XLS to create a session, then chat with the supervisor via Server-Sent Events.\n\n## Quick start\n1. Start the API: `uv run uvicorn src.api.main:app --reload --port 8000`\n2. Run **Health** — expect `{\"status\":\"ok\"}`.\n3. Run **Create session** — the test script saves `session_id` into the `session_id` collection variable.\n4. Run **Send message (SSE)** — Postman shows the raw `event:` / `data:` stream in the response body.\n\n## SSE in Postman\nPostman renders an SSE response as raw text (it does not parse `event:`/`data:` lines). Each event terminates with a blank line. Use **Send and Download** for long streams or switch to **Raw** view.\n\n## Variables\n- `base_url` — default `http://127.0.0.1:8000`\n- `session_id` — populated automatically by the Create-session test script\n- `datev_file_path` — absolute or relative path to a DATEV CSV/XLS on disk (Postman cannot send a file from a URL)",
+    "description": "Endpoints for the German tax-advisory Deep Agent (FastAPI). Upload a DATEV CSV/XLS to create a session, then chat with the supervisor via Server-Sent Events.\n\n## Quick start\n1. Start the API: `uv run uvicorn src.api.main:app --reload --port 8000`\n2. Run **Health** — expect `{\"status\":\"ok\"}`.\n3. Set the `access_token` collection variable to a valid Entra access token (audience `api://<client-id>/access_as_user`). Without it every `/tax-advisory/*` call returns 401. The easiest way to get one in dev is to sign in to the frontend and copy `session.accessToken` from the browser dev tools, or use `az account get-access-token --resource api://<client-id>`.\n4. Run **Create session** — the test script saves `session_id` into the `session_id` collection variable.\n5. Run **Send message (SSE)** — Postman shows the raw `event:` / `data:` stream in the response body.\n\n## Auth\nThe collection uses Bearer auth at the collection level (every request inherits it). `Health` and `OpenAPI schema` override this with `noauth` because they are public.\n\n## SSE in Postman\nPostman renders an SSE response as raw text (it does not parse `event:`/`data:` lines). Each event terminates with a blank line. Use **Send and Download** for long streams or switch to **Raw** view.\n\n## Variables\n- `base_url` — default `http://127.0.0.1:8000`\n- `access_token` — Entra ID access token used for `Authorization: Bearer <token>`\n- `session_id` — populated automatically by the Create-session test script\n- `datev_file_path` — absolute or relative path to a DATEV CSV/XLS on disk (Postman cannot send a file from a URL)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
   },
   "item": [
     {
@@ -12,6 +18,7 @@
         {
           "name": "Health",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
             "url": {
@@ -19,13 +26,14 @@
               "host": ["{{base_url}}"],
               "path": ["health"]
             },
-            "description": "Liveness probe. Returns `{\"status\":\"ok\"}`."
+            "description": "Liveness probe. Returns `{\"status\":\"ok\"}`. Public — no auth required."
           },
           "response": []
         },
         {
           "name": "OpenAPI schema",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
             "url": {
@@ -175,6 +183,12 @@
       "key": "base_url",
       "value": "http://127.0.0.1:8000",
       "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "Entra ID access token (audience api://<client-id>/access_as_user) used for Bearer auth on /tax-advisory/* routes."
     },
     {
       "key": "session_id",

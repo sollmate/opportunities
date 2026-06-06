@@ -9,6 +9,9 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "pydantic-settings>=2.6",
     "fastapi-azure-auth>=5",
+    "asyncpg>=0.30",
+    "azure-identity>=1.19",
+    "aiohttp>=3.10",
 ]
 
 [dependency-groups]

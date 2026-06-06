@@ -6,6 +6,7 @@ import { signIn, useSession } from "next-auth/react";
 
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { Sidebar } from "@/components/sidebar/Sidebar";
+import { UserMenu } from "@/components/ui";
 import { useChat } from "@/hooks/useChat";
 import { useThreads } from "@/hooks/useThreads";
 import { logout } from "@/lib/auth";
@@ -66,12 +67,11 @@ export default function ChatPage() {
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-none items-center justify-between border-b border-charcoal px-6 py-3">
           <h1 className="text-sm font-semibold text-text">Opportunities Agent</h1>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-mute transition-colors hover:text-text"
-          >
-            Sign out
-          </button>
+          <UserMenu
+            name={session.user?.name ?? session.user?.email ?? "You"}
+            email={session.user?.email}
+            onSignOut={handleLogout}
+          />
         </header>
         <ChatWindow
           messages={chat.messages}
