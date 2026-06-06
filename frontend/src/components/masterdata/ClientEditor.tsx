@@ -236,7 +236,7 @@ export function ClientEditor({
         }
       />
 
-      <FormBody submitting={saving} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+      <FormBody submitting={saving} className="sm-scroll lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {error && <p className="text-[12px] text-danger">{error}</p>}
 
         <FormSection title="Identity">

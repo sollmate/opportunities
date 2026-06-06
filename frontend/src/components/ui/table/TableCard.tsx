@@ -86,7 +86,7 @@ export function TableScroll({ children, axis = "x", className }: TableScrollProp
       className={cn(
         "sm-scroll-x overflow-x-auto",
         axis === "both"
-          ? "min-h-0 flex-1 overflow-y-auto"
+          ? "sm-scroll min-h-0 flex-1 overflow-y-auto"
           : "overflow-y-hidden",
         className,
       )}
