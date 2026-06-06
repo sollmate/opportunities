@@ -329,9 +329,9 @@ const BUDGET_COLUMNS: EditableColumn[] = [
 
 const BUDGET_ROWS: EditableRow[] = [
   { id: "BUD-2026-0301", values: { id: "BUD-2026-0301", category: "Salaries & benefits", description: "Engineering payroll · core team", type: "Expense", planned: "€96,300.00", actual: "€94,180.00", period: "Q3 2026" } },
-  { id: "BUD-2026-0302", status: "edited", values: { id: "BUD-2026-0302", category: "Software & tools", description: "Cloud infrastructure (AWS)", type: "Expense", planned: "€18,000.00", actual: "€21,420.00", period: "Q3 2026" } },
+  { id: "BUD-2026-0302", values: { id: "BUD-2026-0302", category: "Software & tools", description: "Cloud infrastructure (AWS)", type: "Expense", planned: "€18,000.00", actual: "€21,420.00", period: "Q3 2026" } },
   { id: "BUD-2026-0303", values: { id: "BUD-2026-0303", category: "Marketing & growth", description: "Q3 launch campaign — Daidalus channel", type: "Expense", planned: "€32,100.00", actual: "", period: "Q3 2026" } },
-  { id: "BUD-2026-0304", status: "new", values: { id: "BUD-2026-0304", category: "Office & operations", description: "Co-working space · Berlin", type: "Expense", planned: "", actual: "", period: "Q3 2026" } },
+  { id: "BUD-2026-0304", values: { id: "BUD-2026-0304", category: "Office & operations", description: "Co-working space · Berlin", type: "Expense", planned: "€6,400.00", actual: "", period: "Q3 2026" } },
   { id: "BUD-2026-0305", values: { id: "BUD-2026-0305", category: "Other", description: "Annual audit — Klein Steuerberatung", type: "Expense", planned: "€8,500.00", actual: "", period: "Q3 2026" } },
 ];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "../Button";
 import { CellSelect, type CellOption } from "./CellSelect";
@@ -25,14 +25,13 @@ export interface EditableColumn {
   validate?: (value: string, row: EditableRow) => boolean;
 }
 
+/** Derived per-row lifecycle (computed by diffing against the saved snapshot). */
 export type EditableRowStatus = "edited" | "new";
 
 export interface EditableRow {
   /** Stable key; also written into any "id"-type column on create. */
   id: string;
   values: Record<string, string>;
-  /** Undefined = pristine. Drives the colored left bar. */
-  status?: EditableRowStatus;
 }
 
 interface EditableTableProps {
@@ -64,10 +63,13 @@ function isCellInvalid(
 
 /**
  * Controlled-internally editable grid. Cells edit in place (transparent inputs
- * that reveal on focus, or a CellSelect popover for select columns). Rows track
- * a pristine/edited/new lifecycle shown as a colored left bar, the footer
- * surfaces a live dirty count + save state, and rows can be added, duplicated,
- * or deleted.
+ * that reveal on focus, or a CellSelect popover for select columns).
+ *
+ * Dirty-state is derived by diffing the working rows against the last committed
+ * snapshot rather than tracked via mutable flags, so additions, in-place edits,
+ * and deletions are all counted consistently. Save is gated on validity and
+ * commits a new snapshot; Discard reverts to the snapshot (restoring deletes,
+ * dropping new rows, undoing edits). Row status drives the colored left bar.
  */
 export function EditableTable({
   title,
@@ -81,16 +83,53 @@ export function EditableTable({
   addLabel = "Add row",
   minWidth = 1052,
 }: EditableTableProps) {
+  const [committed, setCommitted] = useState<EditableRow[]>(initialRows);
   const [rows, setRows] = useState<EditableRow[]>(initialRows);
   const [focusId, setFocusId] = useState<string | null>(null);
   const counter = useRef(0);
 
-  const dirty = rows.filter((r) => r.status).length;
+  const committedById = useMemo(
+    () => new Map(committed.map((r) => [r.id, r])),
+    [committed],
+  );
 
+  const valuesEqual = (a: Record<string, string>, b: Record<string, string>) =>
+    columns.every((c) => (a[c.key] ?? "") === (b[c.key] ?? ""));
+
+  // Status is derived from the snapshot diff, so it can't drift from the data.
+  const statusOf = (row: EditableRow): EditableRowStatus | undefined => {
+    const base = committedById.get(row.id);
+    if (!base) return "new";
+    return valuesEqual(base.values, row.values) ? undefined : "edited";
+  };
+
+  const deletedCount = committed.filter(
+    (c) => !rows.some((r) => r.id === c.id),
+  ).length;
+  const changedCount = rows.filter((r) => statusOf(r)).length;
+  const dirty = deletedCount + changedCount;
+
+  const hasInvalid = rows.some((row) =>
+    columns.some((col) => isCellInvalid(col, row.values[col.key] ?? "", row)),
+  );
+
+  // Produce an id guaranteed not to collide with any current row (covers both
+  // the fallback generator and a caller-supplied makeRowId that collides).
   const nextId = (current: EditableRow[]) => {
-    if (makeRowId) return makeRowId(current);
-    counter.current += 1;
-    return `row-${counter.current}`;
+    const taken = new Set(current.map((r) => r.id));
+    if (makeRowId) {
+      let id = makeRowId(current);
+      while (taken.has(id)) id = `${id}-copy`;
+      return id;
+    }
+    let n = counter.current;
+    let id: string;
+    do {
+      n += 1;
+      id = `row-${n}`;
+    } while (taken.has(id));
+    counter.current = n;
+    return id;
   };
 
   const blankRow = (current: EditableRow[]): EditableRow => {
@@ -98,22 +137,17 @@ export function EditableTable({
     const values: Record<string, string> = {};
     for (const col of columns) {
       if (col.type === "id") values[col.key] = id;
-      else if (col.type === "select") values[col.key] = col.options?.[0]?.value ?? "";
+      else if (col.type === "select")
+        values[col.key] = col.options?.[0]?.value ?? "";
       else values[col.key] = "";
     }
-    return { id, values, status: "new" };
+    return { id, values };
   };
 
   function updateCell(rowId: string, key: string, value: string) {
     setRows((prev) =>
       prev.map((r) =>
-        r.id === rowId
-          ? {
-              ...r,
-              values: { ...r.values, [key]: value },
-              status: r.status === "new" ? "new" : "edited",
-            }
-          : r,
+        r.id === rowId ? { ...r, values: { ...r.values, [key]: value } } : r,
       ),
     );
   }
@@ -131,12 +165,10 @@ export function EditableTable({
       const idx = prev.findIndex((r) => r.id === rowId);
       if (idx < 0) return prev;
       const id = nextId(prev);
-      const source = prev[idx];
-      const values = { ...source.values };
+      const values = { ...prev[idx].values };
       for (const col of columns) if (col.type === "id") values[col.key] = id;
-      const clone: EditableRow = { id, values, status: "new" };
       setFocusId(id);
-      return [...prev.slice(0, idx + 1), clone, ...prev.slice(idx + 1)];
+      return [...prev.slice(0, idx + 1), { id, values }, ...prev.slice(idx + 1)];
     });
   }
 
@@ -144,18 +176,17 @@ export function EditableTable({
     setRows((prev) => prev.filter((r) => r.id !== rowId));
   }
 
-  function clearStatuses(): EditableRow[] {
-    return rows.map((r) => ({ id: r.id, values: r.values }));
-  }
-
   function save() {
-    const cleared = clearStatuses();
-    setRows(cleared);
-    onSave?.(cleared);
+    // Validity gates the commit — invalid rows never reach onSave.
+    if (dirty === 0 || hasInvalid) return;
+    setCommitted(rows);
+    onSave?.(rows);
   }
 
   function discard() {
-    setRows(clearStatuses());
+    // Revert to the last committed snapshot: restores deleted rows, drops
+    // newly added ones, and undoes in-place edits.
+    setRows(committed);
   }
 
   return (
@@ -169,7 +200,12 @@ export function EditableTable({
             <Button variant="secondary" size="sm" onClick={discard}>
               Discard
             </Button>
-            <Button size="sm" onClick={save} disabled={dirty === 0}>
+            <Button
+              size="sm"
+              onClick={save}
+              disabled={dirty === 0 || hasInvalid}
+              title={hasInvalid ? "Resolve invalid cells before saving" : undefined}
+            >
               Save changes
               <span className="ml-1 font-medium opacity-70">· {dirty}</span>
             </Button>
@@ -212,6 +248,7 @@ export function EditableTable({
               <Row
                 key={row.id}
                 row={row}
+                status={statusOf(row)}
                 columns={columns}
                 autoFocus={row.id === focusId}
                 onChange={(key, value) => updateCell(row.id, key, value)}
@@ -252,6 +289,7 @@ export function EditableTable({
 
 function Row({
   row,
+  status,
   columns,
   autoFocus,
   onChange,
@@ -259,6 +297,7 @@ function Row({
   onDelete,
 }: {
   row: EditableRow;
+  status: EditableRowStatus | undefined;
   columns: EditableColumn[];
   autoFocus: boolean;
   onChange: (key: string, value: string) => void;
@@ -271,15 +310,15 @@ function Row({
     <tr
       className={cn(
         "transition-colors hover:bg-ink-3",
-        row.status === "edited" && "bg-primary/[0.05]",
+        status === "edited" && "bg-primary/[0.05]",
       )}
     >
       {columns.map((col, ci) => {
         const value = row.values[col.key] ?? "";
         const invalid = isCellInvalid(col, value, row);
         const bar =
-          ci === 0 && row.status
-            ? row.status === "new"
+          ci === 0 && status
+            ? status === "new"
               ? "shadow-[inset_2px_0_0_var(--sm-success)]"
               : "shadow-[inset_2px_0_0_var(--sm-primary)]"
             : undefined;
