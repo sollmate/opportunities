@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, health
+from app.api.routes import chat, health, threads
 from app.core.config import settings
 from app.core.security import azure_scheme
 
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     api = APIRouter(prefix="/api")
     api.include_router(health.router)
     api.include_router(chat.router)
+    api.include_router(threads.router)
     app.include_router(api)
 
     return app

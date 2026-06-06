@@ -10,13 +10,13 @@ function LoginForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-        <h1 className="text-lg font-semibold">Sign in</h1>
-        <p className="text-sm text-gray-400">
+      <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-charcoal bg-ink-2 p-6">
+        <h1 className="text-lg font-semibold text-text">Sign in</h1>
+        <p className="text-sm text-mute">
           Sign in with your organization Microsoft account to continue.
         </p>
         {error && (
-          <p className="text-sm text-red-500" role="alert">
+          <p className="text-sm text-danger" role="alert">
             {error === "AccessDenied"
               ? "Your account isn't authorized for this app."
               : "Sign-in failed. Please try again."}
@@ -24,7 +24,7 @@ function LoginForm() {
         )}
         <button
           onClick={() => login()}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-primary-deep hover:text-white"
         >
           Sign in with Microsoft
         </button>

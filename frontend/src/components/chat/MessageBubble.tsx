@@ -7,8 +7,8 @@ export function MessageBubble({ message }: { message: Message }) {
       <div
         className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${
           isUser
-            ? "bg-blue-600 text-white"
-            : "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+            ? "bg-primary text-ink"
+            : "border border-charcoal bg-ink-2 text-text"
         }`}
       >
         {message.content}

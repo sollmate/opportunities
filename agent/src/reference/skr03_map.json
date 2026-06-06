@@ -1,0 +1,22 @@
+{
+  "chart": "SKR03",
+  "principle": "Prozessgliederungsprinzip",
+  "revenue": {
+    "8400": "Erlöse 19% USt (Automatikkonto)",
+    "8300": "Erlöse 7% USt",
+    "8100": "Erlöse steuerfrei / Kleinunternehmer",
+    "8200": "Erlöse"
+  },
+  "vat_output": {"1776": "Umsatzsteuer 19%", "1771": "Umsatzsteuer 7%"},
+  "vat_input": {"1576": "Abziehbare Vorsteuer 19%", "1571": "Abziehbare Vorsteuer 7%"},
+  "assets": {
+    "0480": "Geringwertige Wirtschaftsgüter (GWG)",
+    "0485": "GWG-Sammelposten 250-1000 EUR",
+    "0320": "Pkw",
+    "0400": "Betriebsausstattung"
+  },
+  "receivables_payables": {"1400": "Forderungen aLuL", "1600": "Verbindlichkeiten aLuL"},
+  "cash_bank": {"1000": "Kasse", "1200": "Bank"},
+  "expenses": {"4100": "Löhne und Gehälter", "4930": "Bürobedarf", "3200": "Wareneingang"},
+  "ranges": {"revenue": [8000, 8999], "expense": [3000, 4999], "asset": [0, 999]}
+}
