@@ -24,9 +24,7 @@ def test_app_starts_and_skips_warmup_when_unconfigured(
 
     monkeypatch.setattr(settings, "azure_tenant_id", "")
     monkeypatch.setattr(settings, "azure_client_id", "")
-    monkeypatch.setattr(
-        security.azure_scheme.openid_config, "load_config", fake_load_config
-    )
+    monkeypatch.setattr(security.azure_scheme.openid_config, "load_config", fake_load_config)
 
     # Entering the context manager runs the lifespan startup.
     with TestClient(app) as client:
@@ -46,9 +44,7 @@ def test_app_warms_entra_cache_when_configured(
 
     monkeypatch.setattr(settings, "azure_tenant_id", "test-tenant")
     monkeypatch.setattr(settings, "azure_client_id", "test-client")
-    monkeypatch.setattr(
-        security.azure_scheme.openid_config, "load_config", fake_load_config
-    )
+    monkeypatch.setattr(security.azure_scheme.openid_config, "load_config", fake_load_config)
 
     with TestClient(app) as client:
         assert client.get("/api/health").status_code == 200

@@ -1,9 +1,14 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
-const clientId = process.env.AUTH_MICROSOFT_ENTRA_ID_ID!;
-const clientSecret = process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!;
-const issuer = process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER!;
+// Default to empty strings rather than asserting non-null: this module is
+// imported during `next build` (page-data collection), which runs without the
+// runtime env vars set. Touching `undefined` here (e.g. `.replace`) would crash
+// the build; empty strings keep import-time code total, and real values are
+// always present at runtime.
+const clientId = process.env.AUTH_MICROSOFT_ENTRA_ID_ID ?? "";
+const clientSecret = process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET ?? "";
+const issuer = process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER ?? "";
 
 // Request the API scope so Entra issues an access token whose audience is our
 // backend ("Expose an API" -> access_as_user). That token carries the user's
@@ -14,7 +19,9 @@ const scope = `openid profile email offline_access ${apiScope}`;
 
 // Entra v2 token endpoint, derived from the single-tenant issuer
 // (https://login.microsoftonline.com/<tenant>/v2.0).
-const tokenEndpoint = `${issuer.replace(/\/v2\.0\/?$/, "")}/oauth2/v2.0/token`;
+const tokenEndpoint = issuer
+  ? `${issuer.replace(/\/v2\.0\/?$/, "")}/oauth2/v2.0/token`
+  : "";
 
 // Renew slightly before the real expiry to avoid races where the token expires
 // in flight between the session read and the backend call.
