@@ -11,7 +11,9 @@ interface ThreadListProps {
   matchCount: number;
   activeId: string | null;
   loading: boolean;
+  error: string | null;
   onSelect: (id: string) => void;
+  onRetry: () => void;
 }
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
@@ -29,7 +31,9 @@ export function ThreadList({
   matchCount,
   activeId,
   loading,
+  error,
   onSelect,
+  onRetry,
 }: ThreadListProps) {
   const searching = query.trim().length > 0;
 
@@ -39,6 +43,23 @@ export function ThreadList({
         <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-mute">
           Loading threads…
         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-5 text-center">
+        <p className="m-0 text-[12px] leading-[1.5] text-mute">
+          Couldn&apos;t load your conversations.
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-lg border border-charcoal bg-ink-2 px-3 py-1.5 text-[12px] font-medium text-text transition-colors hover:border-primary/40"
+        >
+          Try again
+        </button>
       </div>
     );
   }

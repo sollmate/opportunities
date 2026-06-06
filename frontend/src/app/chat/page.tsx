@@ -45,9 +45,11 @@ export default function ChatPage() {
         matchCount={threads.matchCount}
         activeId={threads.activeId}
         loading={threads.loading}
+        error={threads.error}
         onQueryChange={threads.setQuery}
         onSelect={handleSelect}
         onNewChat={handleNewChat}
+        onRetry={threads.reload}
       />
 
       <main className="flex min-w-0 flex-1 flex-col">

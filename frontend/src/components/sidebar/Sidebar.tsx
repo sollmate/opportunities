@@ -20,9 +20,11 @@ interface SidebarProps {
   matchCount: number;
   activeId: string | null;
   loading: boolean;
+  error: string | null;
   onQueryChange: (q: string) => void;
   onSelect: (id: string) => void;
   onNewChat: () => void;
+  onRetry: () => void;
 }
 
 export function Sidebar({
@@ -32,9 +34,11 @@ export function Sidebar({
   matchCount,
   activeId,
   loading,
+  error,
   onQueryChange,
   onSelect,
   onNewChat,
+  onRetry,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -81,7 +85,9 @@ export function Sidebar({
             matchCount={matchCount}
             activeId={activeId}
             loading={loading}
+            error={error}
             onSelect={onSelect}
+            onRetry={onRetry}
           />
         </>
       )}
