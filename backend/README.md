@@ -23,11 +23,20 @@ uv run pytest             # tests
 
 ## Endpoints
 
-| Method | Path              | Auth   | Description                          |
-| ------ | ----------------- | ------ | ------------------------------------ |
-| GET    | `/api/health`     | no     | Liveness check                       |
-| POST   | `/api/auth/login` | no     | Stub login → returns a bearer token  |
-| POST   | `/api/chat`       | bearer | Send messages, get an agent reply    |
+| Method | Path          | Auth   | Description                       |
+| ------ | ------------- | ------ | --------------------------------- |
+| GET    | `/api/health` | no     | Liveness check                    |
+| POST   | `/api/chat`   | bearer | Send messages, get an agent reply |
+
+## Authentication
+
+`/api/chat` requires a Microsoft Entra ID access token (`Authorization: Bearer
+<token>`), obtained by the frontend via Auth.js. `app/core/security.py` validates
+the token (signature/issuer/audience/tenant) via `fastapi-azure-auth`, and
+`get_current_user` in `app/api/deps.py` additionally requires the
+`AZURE_REQUIRED_ROLE` app role — otherwise it returns `403`. Configure
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_REQUIRED_ROLE` in `.env` (see the
+root README for the Azure app registration steps).
 
 ## Plugging in the real agent
 
