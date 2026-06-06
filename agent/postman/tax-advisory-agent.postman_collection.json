@@ -77,7 +77,7 @@
                   "key": "datev_file",
                   "type": "file",
                   "src": "{{datev_file_path}}",
-                  "description": "DATEV EXTF Buchungsstapel CSV or Excel file."
+                  "description": "Optional DATEV EXTF Buchungsstapel CSV or Excel file. Omit for a text-only session."
                 },
                 {
                   "key": "master_data_file",
@@ -93,7 +93,67 @@
               "host": ["{{base_url}}"],
               "path": ["tax-advisory", "session"]
             },
-            "description": "Ingest a DATEV export, normalize it to the virtual ledger, detect SKR03/SKR04, and create an in-memory session. Returns:\n```json\n{\n  \"session_id\": \"…\",\n  \"ledger_rows\": 0,\n  \"skr_variant\": \"SKR03\",\n  \"master_data_complete\": false,\n  \"missing_fields\": [\"legal_form\", \"prior_year_net_turnover\", …]\n}\n```\nThe test script stores `session_id` into the collection variable of the same name so the next request can use it.\n\n**File field**: in Postman, click the `datev_file` row and pick a file from disk (the `src` is templated to `{{datev_file_path}}` for convenience but Postman will let you override it inline)."
+            "description": "Ingest a DATEV export, normalize it to the virtual ledger, detect SKR03/SKR04, and create an in-memory session. Both files are optional — see *Create session (text only)* for the fileless variant. Returns:\n```json\n{\n  \"session_id\": \"…\",\n  \"ledger_rows\": 0,\n  \"skr_variant\": \"SKR03\",\n  \"master_data_complete\": false,\n  \"missing_fields\": [\"legal_form\", \"prior_year_net_turnover\", …]\n}\n```\n`master_data_complete` is a convenience flag (`= missing_fields.length === 0`) signalling whether the four REQUIRED master-data fields (`legal_form`, `skr_variant`, `prior_year_net_turnover`, `current_year_turnover`) are all present. If `false`, the client should collect the missing values via the interview and feed them back in via *Send message — provide master data*.\n\nThe test script stores `session_id` into the collection variable of the same name so the next request can use it.\n\n**File field**: in Postman, click the `datev_file` row and pick a file from disk (the `src` is templated to `{{datev_file_path}}` for convenience but Postman will let you override it inline)."
+          },
+          "response": []
+        },
+        {
+          "name": "Create session (text only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('returns session_id', () => pm.expect(body.session_id).to.be.a('string'));",
+                  "pm.test('no ledger rows', () => pm.expect(body.ledger_rows).to.eql(0));",
+                  "pm.test('skr_variant is null', () => pm.expect(body.skr_variant).to.be.null);",
+                  "pm.collectionVariables.set('session_id', body.session_id);",
+                  "console.log('text-only session_id =', body.session_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "{{base_url}}/tax-advisory/session",
+              "host": ["{{base_url}}"],
+              "path": ["tax-advisory", "session"]
+            },
+            "description": "Create a session with **no uploads** — for free-form German tax Q&A without a DATEV ledger. Both `datev_file` and `master_data_file` are optional, so an empty multipart body is valid. Response shape is identical to the DATEV variant but with `ledger_rows: 0` and `skr_variant: null`.\n\nThe ledger-aware tool (`ledger_compute`) will return a graceful *ledger not found* error if invoked in this mode, and files can still be attached later via *Attach file to session*."
+          },
+          "response": []
+        },
+        {
+          "name": "Attach file to session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{datev_file_path}}",
+                  "description": "CSV or Excel file. Saved under the agent's virtual `/uploads/` folder and catalogued in `/uploads/_index.json`."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/tax-advisory/session/{{session_id}}/file",
+              "host": ["{{base_url}}"],
+              "path": ["tax-advisory", "session", "{{session_id}}", "file"]
+            },
+            "description": "Attach an additional CSV or Excel file to an existing session. The agent receives a system note pointing at the new virtual path and reads the file per the *user-uploaded-files* skill. Use this to add files to a text-only session or to provide supplementary data alongside the DATEV ledger.\n\nReturns the catalog entry:\n```json\n{\n  \"original_name\": \"…\",\n  \"virtual_path\": \"/uploads/…\",\n  \"rows\": 0,\n  \"columns\": [\"…\"]\n}\n```"
           },
           "response": []
         },
