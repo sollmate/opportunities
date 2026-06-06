@@ -35,8 +35,7 @@ def _stub_threads() -> list[Thread]:
             id="t-vat-recon",
             title="May VAT reconciliation",
             preview=(
-                "1,284 lines reconciled. Two intercompany lines flagged "
-                "— apply reverse-charge?"
+                "1,284 lines reconciled. Two intercompany lines flagged — apply reverse-charge?"
             ),
             status="awaiting_input",
             updatedAt=now - 3 * hour,
@@ -52,8 +51,7 @@ def _stub_threads() -> list[Thread]:
             id="t-recurring-jes",
             title="Posted 38 recurring JEs for April",
             preview=(
-                "All recurring accruals posted to GL — payroll, "
-                "depreciation, and SaaS prepaids."
+                "All recurring accruals posted to GL — payroll, depreciation, and SaaS prepaids."
             ),
             status="idle",
             updatedAt=now - (day + 2 * hour),
