@@ -6,9 +6,7 @@ def _new_client_payload(**overrides) -> dict:
         "client_type": "company",
         "display_name": "Müller GmbH",
         "status": "active",
-        "contacts": [
-            {"first_name": "Anna", "last_name": "Müller", "is_primary": True}
-        ],
+        "contacts": [{"first_name": "Anna", "last_name": "Müller", "is_primary": True}],
         "addresses": [{"address_type": "registered", "city": "Berlin"}],
     }
     payload.update(overrides)
@@ -37,9 +35,7 @@ def test_create_and_list_client(clients_client: TestClient) -> None:
 
 
 def test_update_client(clients_client: TestClient) -> None:
-    client_id = clients_client.post(
-        "/api/clients", json=_new_client_payload()
-    ).json()["client_id"]
+    client_id = clients_client.post("/api/clients", json=_new_client_payload()).json()["client_id"]
 
     resp = clients_client.put(
         f"/api/clients/{client_id}",
@@ -51,16 +47,12 @@ def test_update_client(clients_client: TestClient) -> None:
 
 
 def test_update_unknown_client_404(clients_client: TestClient) -> None:
-    resp = clients_client.put(
-        "/api/clients/does-not-exist", json=_new_client_payload()
-    )
+    resp = clients_client.put("/api/clients/does-not-exist", json=_new_client_payload())
     assert resp.status_code == 404
 
 
 def test_delete_client(clients_client: TestClient) -> None:
-    client_id = clients_client.post(
-        "/api/clients", json=_new_client_payload()
-    ).json()["client_id"]
+    client_id = clients_client.post("/api/clients", json=_new_client_payload()).json()["client_id"]
 
     assert clients_client.delete(f"/api/clients/{client_id}").status_code == 204
     assert clients_client.delete(f"/api/clients/{client_id}").status_code == 404

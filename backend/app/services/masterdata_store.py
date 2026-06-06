@@ -106,9 +106,7 @@ async def list_clients() -> list[Client]:
     """
     pool = db.get_pool()
     async with pool.acquire() as conn:
-        client_rows = await conn.fetch(
-            _CLIENT_SELECT + " ORDER BY lower(display_name)"
-        )
+        client_rows = await conn.fetch(_CLIENT_SELECT + " ORDER BY lower(display_name)")
         contact_rows = await conn.fetch("SELECT * FROM crm.contact")
         address_rows = await conn.fetch("SELECT * FROM crm.address")
 
@@ -132,17 +130,11 @@ async def list_clients() -> list[Client]:
 async def get_client(client_id: str) -> Client | None:
     pool = db.get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            _CLIENT_SELECT + " WHERE client_id = $1", client_id
-        )
+        row = await conn.fetchrow(_CLIENT_SELECT + " WHERE client_id = $1", client_id)
         if row is None:
             return None
-        contact_rows = await conn.fetch(
-            "SELECT * FROM crm.contact WHERE client_id = $1", client_id
-        )
-        address_rows = await conn.fetch(
-            "SELECT * FROM crm.address WHERE client_id = $1", client_id
-        )
+        contact_rows = await conn.fetch("SELECT * FROM crm.contact WHERE client_id = $1", client_id)
+        address_rows = await conn.fetch("SELECT * FROM crm.address WHERE client_id = $1", client_id)
     return _to_client(
         row,
         [_to_contact(r) for r in contact_rows],
@@ -195,8 +187,7 @@ async def create_client(payload: ClientUpsert) -> Client:
     async with pool.acquire() as conn:
         async with conn.transaction():
             client_id = await conn.fetchval(
-                f"INSERT INTO crm.client ({cols}) VALUES ({placeholders}) "
-                "RETURNING client_id",
+                f"INSERT INTO crm.client ({cols}) VALUES ({placeholders}) RETURNING client_id",
                 *values,
             )
             await _insert_children(conn, client_id, payload)
@@ -213,19 +204,14 @@ async def update_client(client_id: str, payload: ClientUpsert) -> Client | None:
     async with pool.acquire() as conn:
         async with conn.transaction():
             updated = await conn.fetchval(
-                f"UPDATE crm.client SET {assignments} WHERE client_id = $1 "
-                "RETURNING client_id",
+                f"UPDATE crm.client SET {assignments} WHERE client_id = $1 RETURNING client_id",
                 client_id,
                 *values,
             )
             if updated is None:
                 return None
-            await conn.execute(
-                "DELETE FROM crm.contact WHERE client_id = $1", client_id
-            )
-            await conn.execute(
-                "DELETE FROM crm.address WHERE client_id = $1", client_id
-            )
+            await conn.execute("DELETE FROM crm.contact WHERE client_id = $1", client_id)
+            await conn.execute("DELETE FROM crm.address WHERE client_id = $1", client_id)
             await _insert_children(conn, client_id, payload)
     return await get_client(client_id)
 
@@ -234,9 +220,7 @@ async def delete_client(client_id: str) -> bool:
     """Delete a client (FK cascade removes contacts/addresses). True if removed."""
     pool = db.get_pool()
     async with pool.acquire() as conn:
-        result = await conn.execute(
-            "DELETE FROM crm.client WHERE client_id = $1", client_id
-        )
+        result = await conn.execute("DELETE FROM crm.client WHERE client_id = $1", client_id)
     # asyncpg returns a status string like "DELETE 1".
     return result.rsplit(" ", 1)[-1] != "0"
 
@@ -244,10 +228,5 @@ async def delete_client(client_id: str) -> bool:
 async def list_industries() -> list[Industry]:
     pool = db.get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT industry_id, code, name FROM ref.industry ORDER BY name"
-        )
-    return [
-        Industry(industry_id=r["industry_id"], code=r["code"], name=r["name"])
-        for r in rows
-    ]
+        rows = await conn.fetch("SELECT industry_id, code, name FROM ref.industry ORDER BY name")
+    return [Industry(industry_id=r["industry_id"], code=r["code"], name=r["name"]) for r in rows]
