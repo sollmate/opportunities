@@ -2,23 +2,35 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { useChat } from "@/hooks/useChat";
 import { useThreads } from "@/hooks/useThreads";
-import { getToken, logout } from "@/lib/auth";
+import { logout } from "@/lib/auth";
 
 export default function ChatPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const threads = useThreads();
   const chat = useChat();
 
   useEffect(() => {
-    if (!getToken()) {
+    if (status === "unauthenticated") {
       router.replace("/login");
     }
-  }, [router]);
+  }, [router, status]);
+
+  useEffect(() => {
+    // The access token expired and couldn't be refreshed — re-authenticate
+    // rather than keep sending a stale bearer token to the backend.
+    if (session?.error === "RefreshTokenError") {
+      signIn("microsoft-entra-id");
+    }
+  }, [session?.error]);
+
+  if (status !== "authenticated") return null;
 
   function handleNewChat() {
     threads.setActiveId(null);
@@ -33,7 +45,6 @@ export default function ChatPage() {
 
   function handleLogout() {
     logout();
-    router.replace("/login");
   }
 
   return (

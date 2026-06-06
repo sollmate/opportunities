@@ -1,12 +1,11 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi_azure_auth.user import User
 
-from app.core.security import verify_token
+from app.core.config import settings
+from app.core.security import azure_scheme
 from app.services.agent import AgentService, EchoAgentService
-
-_bearer = HTTPBearer(auto_error=True)
 
 # Single instance of the agent. Swap EchoAgentService for the real
 # implementation here when it is ready — this is the only line that changes.
@@ -18,16 +17,18 @@ def get_agent_service() -> AgentService:
 
 
 def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(_bearer)],
+    user: Annotated[User, Depends(azure_scheme)],
 ) -> str:
-    """Validate the bearer token and return the (stub) user identity.
+    """Resolve the authenticated user from a validated Entra ID access token.
 
-    Replace with real user resolution once authentication is implemented.
+    The token signature, issuer, audience and tenant are already verified by
+    `azure_scheme`. Here we additionally require the user to hold the configured
+    app role; otherwise they are a tenant member without access to this app.
+    Returns a stable user identity (the Entra object id).
     """
-    if not verify_token(credentials.credentials):
+    if settings.azure_required_role not in (user.roles or []):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not authorized for this application",
         )
-    return "dev-user"
+    return user.claims.get("oid") or user.preferred_username or "unknown"

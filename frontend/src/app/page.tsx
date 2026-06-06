@@ -2,15 +2,16 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-import { getToken } from "@/lib/auth";
+import { useSession } from "next-auth/react";
 
 export default function Home() {
   const router = useRouter();
+  const { status } = useSession();
 
   useEffect(() => {
-    router.replace(getToken() ? "/chat" : "/login");
-  }, [router]);
+    if (status === "loading") return;
+    router.replace(status === "authenticated" ? "/chat" : "/login");
+  }, [router, status]);
 
   return null;
 }

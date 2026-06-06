@@ -7,14 +7,6 @@ def test_health(client: TestClient) -> None:
     assert resp.json() == {"status": "ok"}
 
 
-def test_login_returns_token(client: TestClient) -> None:
-    resp = client.post("/api/auth/login", json={"email": "a@b.c", "password": "x"})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["token_type"] == "bearer"
-    assert body["access_token"]
-
-
 def test_chat_requires_auth(client: TestClient) -> None:
     resp = client.post(
         "/api/chat",
@@ -23,10 +15,9 @@ def test_chat_requires_auth(client: TestClient) -> None:
     assert resp.status_code in (401, 403)
 
 
-def test_chat_echoes(client: TestClient, auth_headers: dict[str, str]) -> None:
-    resp = client.post(
+def test_chat_echoes(authed_client: TestClient) -> None:
+    resp = authed_client.post(
         "/api/chat",
-        headers=auth_headers,
         json={"messages": [{"role": "user", "content": "hello world"}]},
     )
     assert resp.status_code == 200
@@ -36,10 +27,9 @@ def test_chat_echoes(client: TestClient, auth_headers: dict[str, str]) -> None:
     assert body["message"]["content"] == "You said: hello world"
 
 
-def test_chat_preserves_conversation_id(client: TestClient, auth_headers: dict[str, str]) -> None:
-    resp = client.post(
+def test_chat_preserves_conversation_id(authed_client: TestClient) -> None:
+    resp = authed_client.post(
         "/api/chat",
-        headers=auth_headers,
         json={
             "conversation_id": "abc123",
             "messages": [{"role": "user", "content": "again"}],

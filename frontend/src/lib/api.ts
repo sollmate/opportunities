@@ -1,13 +1,13 @@
-import { getToken } from "@/lib/auth";
+import { getSession } from "next-auth/react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
+  const session = await getSession();
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (session?.accessToken) {
+    headers.set("Authorization", `Bearer ${session.accessToken}`);
   }
 
   const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });

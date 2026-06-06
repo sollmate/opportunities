@@ -6,8 +6,8 @@ def test_threads_requires_auth(client: TestClient) -> None:
     assert resp.status_code in (401, 403)
 
 
-def test_threads_returns_list(client: TestClient, auth_headers: dict[str, str]) -> None:
-    resp = client.get("/api/threads", headers=auth_headers)
+def test_threads_returns_list(authed_client: TestClient) -> None:
+    resp = authed_client.get("/api/threads")
     assert resp.status_code == 200
     threads = resp.json()["threads"]
     assert isinstance(threads, list)
