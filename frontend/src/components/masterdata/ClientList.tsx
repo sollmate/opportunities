@@ -27,10 +27,7 @@ const mono = (text: React.ReactNode) => (
   <span className="font-mono text-xs text-mute">{text}</span>
 );
 
-function columns(
-  selectedId: string | null,
-  onSelect: (id: string) => void,
-): GroupedColumn<Client, Contact>[] {
+function columns(): GroupedColumn<Client, Contact>[] {
   return [
     {
       key: "name",
@@ -86,24 +83,6 @@ function columns(
         </span>
       ),
     },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      width: 96,
-      renderParent: (c) => (
-        <Button
-          variant={c.client_id === selectedId ? "primary" : "secondary"}
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(c.client_id);
-          }}
-        >
-          Edit
-        </Button>
-      ),
-    },
   ];
 }
 
@@ -124,10 +103,10 @@ export function ClientList({
   const ctrl = useGroupedTable(groups);
 
   return (
-    <TableCard>
+    <TableCard className="lg:flex lg:h-full lg:min-h-0 lg:flex-col">
       <TableHeader
         title="Clients"
-        subtitle={`${clients.length} client${clients.length === 1 ? "" : "s"} · expand a row for contacts`}
+        subtitle={`${clients.length} client${clients.length === 1 ? "" : "s"} · click a row to view · chevron expands contacts`}
         actions={
           <>
             <Button variant="secondary" size="sm" onClick={ctrl.expandAll}>
@@ -139,7 +118,7 @@ export function ClientList({
           </>
         }
       />
-      <TableScroll>
+      <TableScroll axis="both">
         {error ? (
           <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
             <p className="text-[13px] text-danger">{error}</p>
@@ -157,10 +136,12 @@ export function ClientList({
           </p>
         ) : (
           <GroupedTable
-            columns={columns(selectedId, onSelect)}
+            columns={columns()}
             groups={groups}
             controller={ctrl}
             minWidth={720}
+            onParentClick={(c) => onSelect(c.client_id)}
+            selectedId={selectedId ?? undefined}
           />
         )}
       </TableScroll>

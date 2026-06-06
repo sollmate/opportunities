@@ -224,8 +224,9 @@ export function ClientEditor({
   }
 
   return (
-    <FormCard onSubmit={onSubmit} submitting={saving}>
+    <FormCard onSubmit={onSubmit} submitting={saving} className="lg:h-full lg:min-h-0">
       <FormHeader
+        className="shrink-0"
         title={form.display_name.trim() || (isNew ? "New client" : "Client")}
         subtitle={isNew ? "Create a new client record" : form.client_number || undefined}
         status={
@@ -235,7 +236,7 @@ export function ClientEditor({
         }
       />
 
-      <FormBody submitting={saving}>
+      <FormBody submitting={saving} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {error && <p className="text-[12px] text-danger">{error}</p>}
 
         <FormSection title="Identity">
@@ -530,6 +531,7 @@ export function ClientEditor({
       </FormBody>
 
       <FormFooter
+        className="shrink-0"
         left={
           isNew ? (
             <Button variant="text" size="sm" onClick={onCancel}>

@@ -70,13 +70,27 @@ export function TableBadge({ children }: { children: ReactNode }) {
 
 interface TableScrollProps {
   children: ReactNode;
+  /**
+   * Scroll axes. "x" (default) scrolls horizontally only — the original
+   * behavior. "both" also scrolls vertically and fills its flex parent, for
+   * full-height table panes that need their own scroll region.
+   */
+  axis?: "x" | "both";
   className?: string;
 }
 
-/** Horizontal scroll container with the themed table scrollbar. */
-export function TableScroll({ children, className }: TableScrollProps) {
+/** Scroll container with the themed table scrollbar. */
+export function TableScroll({ children, axis = "x", className }: TableScrollProps) {
   return (
-    <div className={cn("sm-scroll-x overflow-x-auto overflow-y-hidden", className)}>
+    <div
+      className={cn(
+        "sm-scroll-x overflow-x-auto",
+        axis === "both"
+          ? "min-h-0 flex-1 overflow-y-auto"
+          : "overflow-y-hidden",
+        className,
+      )}
+    >
       {children}
     </div>
   );

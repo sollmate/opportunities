@@ -79,7 +79,7 @@ export default function MasterDataPage() {
           />
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto p-6 lg:grid-cols-[1fr_minmax(360px,440px)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto p-6 lg:grid-rows-1 lg:overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(460px,540px)]">
           <ClientList
             clients={clients.clients}
             selectedId={clients.selectedId}
@@ -99,7 +99,7 @@ export default function MasterDataPage() {
               onCancel={closeEditor}
             />
           ) : (
-            <div className="flex items-center justify-center rounded-xl border border-dashed border-charcoal p-8 text-center text-[13px] text-mute">
+            <div className="flex items-center justify-center rounded-xl border border-dashed border-charcoal p-8 text-center text-[13px] text-mute lg:h-full lg:min-h-0">
               Select a client to edit, or create a new one.
             </div>
           )}

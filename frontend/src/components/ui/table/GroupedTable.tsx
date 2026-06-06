@@ -74,6 +74,14 @@ interface GroupedTableProps<P, C> {
   stickyHeader?: boolean;
   /** Minimum table width before horizontal scrolling kicks in. */
   minWidth?: number | string;
+  /**
+   * When set, clicking a parent row body invokes this (e.g. to select the row)
+   * instead of toggling its children — the chevron cell still toggles. Omit to
+   * keep the default behavior where the whole parent row toggles expansion.
+   */
+  onParentClick?: (parent: P) => void;
+  /** Id of the currently selected group; highlights that parent row. */
+  selectedId?: string;
   className?: string;
 }
 
@@ -90,6 +98,8 @@ export function GroupedTable<P, C>({
   defaultOpen,
   stickyHeader = true,
   minWidth = 940,
+  onParentClick,
+  selectedId,
   className,
 }: GroupedTableProps<P, C>) {
   const internal = useGroupedTable(groups, { defaultOpen });
@@ -148,6 +158,8 @@ export function GroupedTable<P, C>({
               open={open}
               onToggle={() => ctrl.toggle(group.id)}
               colCount={colCount}
+              onParentClick={onParentClick}
+              selected={selectedId === group.id}
             />
           );
         })}
@@ -161,30 +173,48 @@ function GroupRows<P, C>({
   columns,
   open,
   onToggle,
+  onParentClick,
+  selected,
 }: {
   group: TableGroup<P, C>;
   columns: GroupedColumn<P, C>[];
   open: boolean;
   onToggle: () => void;
   colCount: number;
+  onParentClick?: (parent: P) => void;
+  selected?: boolean;
 }) {
+  // With onParentClick the row body selects and only the chevron toggles;
+  // without it the whole row toggles (original behavior).
+  const onRowClick = onParentClick
+    ? () => onParentClick(group.parent)
+    : onToggle;
   return (
     <>
       <tr
-        className="cursor-pointer transition-colors hover:bg-ink-3"
-        onClick={onToggle}
+        className={cn(
+          "cursor-pointer transition-colors",
+          selected ? "bg-primary/12" : "hover:bg-ink-3",
+        )}
+        onClick={onRowClick}
         aria-expanded={open}
+        aria-selected={onParentClick ? selected ?? false : undefined}
       >
         <td className="w-9 border-b border-charcoal pl-4.5 pr-0 align-middle">
-          <span
-            aria-hidden
+          <button
+            type="button"
+            aria-label={open ? "Collapse row" : "Expand row"}
+            onClick={(e) => {
+              if (onParentClick) e.stopPropagation();
+              onToggle();
+            }}
             className={cn(
-              "inline-block h-3.5 w-3.5 text-center font-mono text-[10px] leading-[14px] transition-transform",
+              "inline-flex h-3.5 w-3.5 items-center justify-center font-mono text-[10px] leading-[14px] transition-transform",
               open ? "rotate-90 text-primary" : "text-mute",
             )}
           >
             ›
-          </span>
+          </button>
         </td>
         {columns.map((col) => (
           <td
