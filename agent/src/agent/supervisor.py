@@ -8,8 +8,8 @@ from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend
 
 from src.agent.prompts import SUPERVISOR_PROMPT
-from src.agent.tools.code_sandbox import make_ledger_compute
-from src.agent.tools.master_data_db import make_fetch_master_data
+from src.agent.tools.code_sandbox import ledger_compute
+from src.agent.tools.master_data_db import fetch_master_data
 from src.config.llm import get_model_string
 from src.config.profiles import register_tax_profiles
 
@@ -33,7 +33,7 @@ def build_agent(root_dir: str = "."):
 
     return create_deep_agent(
         model=get_model_string(),
-        tools=[make_ledger_compute(root_dir), make_fetch_master_data(root_dir)],
+        tools=[ledger_compute, fetch_master_data],
         system_prompt=SUPERVISOR_PROMPT,
         skills=[skills_virtual_path],
         backend=backend,
