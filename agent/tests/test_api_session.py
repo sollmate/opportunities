@@ -11,7 +11,10 @@ async def test_create_session_detects_skr(client):
     assert r.status_code == 200
     body = r.json()
     assert body["session_id"]
-    assert "prior_year_net_turnover" in body["missing_fields"]
+    # No master-data file was uploaded: the route no longer runs the interview;
+    # the agent fetches master data from Postgres on demand.
+    assert body["missing_fields"] == []
+    assert body["master_data_complete"] is True
 
 
 @pytest.mark.asyncio

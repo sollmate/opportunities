@@ -8,6 +8,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from sse_starlette.sse import EventSourceResponse
 
 from src.agent.supervisor import build_agent
+from src.api.schemas.master_data import MasterData
 from src.api.schemas.session import CreateSessionResponse, MessageRequest
 from src.config.settings import get_settings, ensure_workspace
 from src.parsers.master_data import load_master_data
@@ -62,13 +63,22 @@ def _upload_note(entry: dict) -> str:
 @router.post("/session", response_model=CreateSessionResponse)
 async def create_session(
     datev_file: UploadFile | None = File(None, description="Optional CSV or Excel upload"),
-    master_data_file: UploadFile | None = File(None, description="Master-data companion JSON"),
+    master_data_file: UploadFile | None = File(
+        None,
+        description=(
+            "Optional master-data JSON. Normally master data is fetched from "
+            "Postgres via the agent's fetch_master_data tool; this field exists "
+            "only for offline / Postman flows."
+        ),
+    ),
 ) -> CreateSessionResponse:
     """Open a session, optionally attaching a CSV/Excel + master data.
 
     Uploads are stored as generic user files under `/uploads/` and indexed in
     `/uploads/_index.json`; the agent reads them per the user-uploaded-files
-    skill. No DATEV-specific parsing is required.
+    skill. Master data is sourced from Postgres on demand by the agent itself
+    (see `fetch_master_data`) — only a caller that explicitly uploads a JSON
+    file here causes `/master_data.json` to be written.
     """
     workspace = ensure_workspace()
 
@@ -84,19 +94,28 @@ async def create_session(
             raise HTTPException(status_code=422, detail=f"upload failed: {exc}") from exc
         ledger_rows = int(upload_entry.get("rows") or 0)
 
-    md_bytes = await master_data_file.read() if master_data_file else None
-    master_data, missing = load_master_data(md_bytes)
-
-    # Persist master data for the agent
-    Path(workspace, "master_data.json").write_text(
-        master_data.model_dump_json(), encoding="utf-8"
-    )
+    master_data: MasterData
+    missing_fields: list[str] = []
+    if master_data_file is not None:
+        md_bytes = await master_data_file.read()
+        md, missing = load_master_data(md_bytes)
+        master_data = md
+        missing_fields = missing.fields
+        Path(workspace, "master_data.json").write_text(
+            master_data.model_dump_json(), encoding="utf-8"
+        )
+    else:
+        master_data = MasterData()
+        # Ensure no stale master_data.json from a previous session leaks across.
+        stale = Path(workspace, "master_data.json")
+        if stale.exists():
+            stale.unlink()
 
     s = STORE.create(
         root_dir=str(workspace),
         skr_variant=master_data.skr_variant,
         master_data=master_data,
-        missing_fields=missing.fields,
+        missing_fields=missing_fields,
     )
     if upload_entry is not None:
         s.history.append({"role": "user", "content": _upload_note(upload_entry)})
@@ -104,8 +123,8 @@ async def create_session(
         session_id=s.session_id,
         ledger_rows=ledger_rows,
         skr_variant=master_data.skr_variant,
-        master_data_complete=not missing.fields,
-        missing_fields=missing.fields,
+        master_data_complete=not missing_fields,
+        missing_fields=missing_fields,
     )
 
 
