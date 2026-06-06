@@ -42,6 +42,9 @@ function OptionContent({ option }: { option: SelectOption }) {
       {option.code && (
         <span className="flex-none font-mono text-text">{option.code}</span>
       )}
+      {option.label && option.label !== option.code && (
+        <span className="truncate text-text">{option.label}</span>
+      )}
       {option.secondary && (
         <span className="truncate text-[11px] text-mute">{option.secondary}</span>
       )}
