@@ -4,6 +4,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import chat, health, threads
+from app.core import db
 from app.core.config import settings
 from app.core.security import azure_scheme
 
@@ -17,7 +18,13 @@ async def lifespan(app: FastAPI):
     # requests still surface a clear error if the config is genuinely missing.
     if settings.azure_tenant_id and settings.azure_client_id:
         await azure_scheme.openid_config.load_config()
-    yield
+    # Open the Postgres pool (no-op when PG_* is unconfigured, so the app still
+    # boots without DB access).
+    await db.connect()
+    try:
+        yield
+    finally:
+        await db.disconnect()
 
 
 def create_app() -> FastAPI:
