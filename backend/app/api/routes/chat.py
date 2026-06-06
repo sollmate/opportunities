@@ -20,6 +20,24 @@ from app.services.agent import AgentError, AgentService
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+def _content_to_text(content) -> str:
+    """Coerce an agent reply into plain text for storage and display.
+
+    The agent's ``final`` event may carry ``content`` either as a string or as
+    a list of content blocks (e.g. ``[{"type": "text", "text": "..."}]``). The
+    ``chat.message.content`` column and the frontend both expect a string, so
+    flatten any block list by concatenating the ``text`` of each block.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    return str(content)
+
+
 @router.post("")
 async def chat(
     request: ChatRequest,
@@ -42,7 +60,7 @@ async def chat(
             ):
                 if event == "final":
                     try:
-                        final_content = json.loads(data).get("content", "")
+                        final_content = _content_to_text(json.loads(data).get("content", ""))
                     except (json.JSONDecodeError, AttributeError):
                         final_content = data
                 yield {"event": event, "data": data}
