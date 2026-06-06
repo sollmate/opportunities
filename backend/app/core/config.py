@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     pg_user: str = ""
     pg_pool_max_size: int = 10
     pg_command_timeout: float = 30.0
+    # Client ID of the user-assigned managed identity used to acquire the
+    # Postgres Entra token. Set this explicitly so `DefaultAzureCredential`
+    # selects the right identity WITHOUT reading `AZURE_CLIENT_ID` — that env
+    # var is already claimed by the Entra JWT app registration above, and
+    # reusing it would make the credential try to use the app registration as a
+    # managed identity (which fails). Empty = use the system-assigned identity
+    # (or the local `az login` identity).
+    pg_mi_client_id: str = ""
     # Optional path to a CA bundle for verifying the Postgres server cert.
     # Empty = verify against the system trust store (works for Azure Postgres,
     # whose certs chain to public CAs).

@@ -51,6 +51,7 @@ def test_app_starts_when_db_unreachable_at_startup(
     /api/ready reports 503 (rather than the process crashing in the lifespan)."""
 
     class FakeCredential:
+        def __init__(self, *args: object, **kwargs: object) -> None: ...
         async def close(self) -> None: ...
 
     async def boom(*args: object, **kwargs: object) -> object:
