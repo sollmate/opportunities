@@ -36,9 +36,40 @@ def ledger_compute(code: str, data_path: str = "/ledger.json") -> str:
             code="result = float(df['amount'].sum())",
         )
     """
+    return _run_ledger_compute(code, data_path, root=None)
+
+
+def make_ledger_compute(root_dir: str):
+    """Build a session-scoped `ledger_compute` tool bound to `root_dir`.
+
+    The agent supervisor calls this per session so the sandbox resolves
+    `data_path` against the session's own workspace instead of the global
+    `settings.project_root` (which would leak state across sessions).
+    """
+    root = Path(root_dir).resolve()
+
+    @tool
+    def ledger_compute(code: str, data_path: str = "/ledger.json") -> str:
+        """Run a small Python snippet over a user-uploaded data file and return JSON.
+
+        Pass `data_path` as the virtual path to a user upload (the `virtual_path`
+        field in `/uploads/_index.json`) or to a JSON file. Excel uploads are
+        stored on disk as CSV text under their original `.xlsx`/`.xls`
+        filename, so the extension is just a label — contents are always CSV
+        unless the extension is `.json`. The file is loaded into a pandas
+        DataFrame named `df` with whatever columns it has. `pd` and `np` are
+        available. Assign the final value to a variable named `result`.
+        """
+        return _run_ledger_compute(code, data_path, root=root)
+
+    return ledger_compute
+
+
+def _run_ledger_compute(code: str, data_path: str, root: Path | None) -> str:
     try:
-        from src.config.settings import get_settings
-        root = Path(get_settings().project_root).resolve()
+        if root is None:
+            from src.config.settings import get_settings
+            root = Path(get_settings().project_root).resolve()
         rel = data_path.lstrip("/\\")
         candidate = (root / rel).resolve()
         if not candidate.is_file():
