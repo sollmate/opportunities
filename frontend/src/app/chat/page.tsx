@@ -84,7 +84,6 @@ export default function ChatPage() {
           loading={chat.loading}
           toolStatus={chat.toolStatus}
           error={chat.error}
-          requireFile={chat.conversationId === null}
         />
       </main>
     </div>

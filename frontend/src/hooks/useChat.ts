@@ -88,19 +88,17 @@ export function useChat({ onThreadCreated }: UseChatOptions = {}) {
     }
   }, []);
 
-  // Submit from the chat input: starts a thread when a file is attached and
-  // there's no active thread, otherwise sends a message to the current thread.
+  // Submit from the chat input: starts a thread on the first send (with or
+  // without an attached file) and otherwise streams a message to the active
+  // thread.
   const submit = useCallback(
     async (text: string, files: File[]) => {
       const trimmed = text.trim();
       if (loading) return;
 
       if (!conversationId) {
+        if (!trimmed && files.length === 0) return;
         const datev = files[0];
-        if (!datev) {
-          setError("Attach a DATEV export (CSV/Excel) to start a chat.");
-          return;
-        }
         const master = files.find((f) => f.name.toLowerCase().endsWith(".json"));
         setLoading(true);
         setError(null);

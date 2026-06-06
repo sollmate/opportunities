@@ -41,7 +41,9 @@ classification as provisional and flag that the prior-year comparison is needed.
 ## Procedure
 1. Confirm `legal_form` is a Kapitalgesellschaft / § 264a entity; otherwise the size classes
    do not apply (return `met=false`, rationale explains scope).
-2. Compute Umsatzerlöse via `ledger_compute` if not supplied.
+2. If revenue is not supplied via master data, compute Umsatzerlöse via `ledger_compute`
+   against a DATEV-shaped upload's `virtual_path` (per the user-uploaded-files skill).
+   If no DATEV-shaped upload exists, ask the consultant for the figure.
 3. Evaluate the criteria from the smallest class upward; assign the class per the
    "two-of-three not exceeded" rule.
 4. Note the two-consecutive-years requirement and whether it is satisfied.

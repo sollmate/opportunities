@@ -11,8 +11,6 @@ interface ChatWindowProps {
   loading: boolean;
   toolStatus: string | null;
   error: string | null;
-  /** True when no thread is active yet, so a file upload is needed to start. */
-  requireFile: boolean;
 }
 
 export function ChatWindow({
@@ -21,7 +19,6 @@ export function ChatWindow({
   loading,
   toolStatus,
   error,
-  requireFile,
 }: ChatWindowProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -31,7 +28,7 @@ export function ChatWindow({
           {error}
         </p>
       )}
-      <ChatInput onSend={send} disabled={loading} requireFile={requireFile} />
+      <ChatInput onSend={send} disabled={loading} />
     </div>
   );
 }

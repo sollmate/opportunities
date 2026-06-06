@@ -29,15 +29,20 @@ skill: tag results `ai_derived`, because the "best" treatment depends on the cli
 | GWG-Sammelposten (250–1.000 €) | 0485 | 0675 |
 
 ## Procedure
-1. Use `ledger_compute` to total additions on the GWG / pool / asset accounts for the period.
-2. Identify items booked **just over 800 € net** — candidates for splitting or timing so they
+1. Confirm a DATEV-shaped upload exists (per the user-uploaded-files skill). If none
+   exists, this check is non-runnable for ledger figures — surface that to the user and
+   skip step 1–2.
+2. Use `ledger_compute` against the DATEV-shaped upload's `virtual_path` to total
+   additions on the GWG / pool / asset accounts for the period.
+3. Identify items booked **just over 800 € net** — candidates for splitting or timing so they
    qualify for immediate write-off (flag as optimization, not a directive).
-3. If `prior_year_profit` < 200.000 €, flag remaining **IAB capacity** for planned investments.
-4. Cross-check the ≥90 % business-use and "beweglich/abnutzbar" conditions cannot be verified
+4. If `prior_year_profit` < 200.000 €, flag remaining **IAB capacity** for planned investments.
+5. Cross-check the ≥90 % business-use and "beweglich/abnutzbar" conditions cannot be verified
    from the ledger alone — state this assumption explicitly and lower confidence accordingly.
 
 Example (SKR04 GWG additions):
-`code = "gwg = df[(df.account=='0670') & (df.amount_signed<0)].amount.sum(); result = float(gwg)"`
+`ledger_compute(data_path="/uploads/<original_name>",
+               code="gwg = df[(df.account.astype(str)=='0670') & (df.amount_signed<0)].amount.sum(); result = float(gwg)")`
 
 ## Output contract (one Trigger)
 ```json

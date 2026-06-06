@@ -34,7 +34,9 @@ Duty is triggered if **either** limit is exceeded:
 ## Procedure
 1. If `legal_form` indicates a Freiberufler / freie Berufe, return `met=false` with a rationale
    noting the § 141 exemption — do not compute further.
-2. Compute turnover via `ledger_compute` over the revenue accounts if no master-data figure is given.
+2. If `master_data.prior_year_net_turnover` is missing, try to compute current-year
+   turnover via `ledger_compute` against a DATEV-shaped upload's `virtual_path` (per
+   the user-uploaded-files skill). If no DATEV-shaped upload exists, ask the consultant.
 3. Compare turnover vs 800.000 € and profit vs 80.000 €.
 4. If either limit is exceeded, set `met=true` and note in the rationale that the duty starts the
    year **after** Finanzamt notification, and that § 140 AO must be ruled out first.

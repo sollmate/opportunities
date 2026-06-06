@@ -1,8 +1,9 @@
 """Persist a user-uploaded CSV/Excel into the agent's VFS as readable text.
 
-We keep the raw upload (`/uploads/<name>`) for traceability and write a normalized CSV
-(`/uploads/<stem>.csv`) for the agent to read. An `/uploads/_index.json` lists every
-upload so the agent can discover them without having to list the directory.
+We write exactly one file per upload, at its original filename under `/uploads/`,
+holding the parsed data in CSV form. The agent's `read_file` and `ledger_compute`
+treat that single path as the authoritative copy. An `/uploads/_index.json` lists
+every upload so the agent can discover them without having to list the directory.
 """
 from __future__ import annotations
 
@@ -17,7 +18,14 @@ ALLOWED_EXT = {".csv", ".xlsx", ".xls"}
 
 
 def save_user_file(raw: bytes, filename: str, root_dir: str) -> dict:
-    """Persist a single upload and return its index entry."""
+    """Persist a single upload and return its index entry.
+
+    The file is written at `/uploads/<original_name>` regardless of its source
+    format. For Excel inputs we parse the first sheet through pandas and write
+    its CSV serialization to the same `.xlsx`/`.xls` filename so the VFS has a
+    text payload to read. CSV inputs are normalized through pandas as well so
+    every upload ends up in the same canonical CSV shape.
+    """
     safe_name = Path(filename).name  # strip any path components
     ext = Path(safe_name).suffix.lower()
     if ext not in ALLOWED_EXT:
@@ -25,9 +33,6 @@ def save_user_file(raw: bytes, filename: str, root_dir: str) -> dict:
 
     uploads = Path(root_dir) / "uploads"
     uploads.mkdir(parents=True, exist_ok=True)
-
-    raw_path = uploads / safe_name
-    raw_path.write_bytes(raw)
 
     parse_error: str | None = None
     df: pd.DataFrame | None = None
@@ -39,22 +44,18 @@ def save_user_file(raw: bytes, filename: str, root_dir: str) -> dict:
     except Exception as exc:
         parse_error = f"{type(exc).__name__}: {exc}"
 
-    stem = Path(safe_name).stem
-    text_name = f"{stem}.csv"
-    text_path = uploads / text_name
-
+    out_path = uploads / safe_name
     if df is not None:
-        df.to_csv(text_path, index=False, encoding="utf-8")
+        df.to_csv(out_path, index=False, encoding="utf-8")
         rows = int(len(df))
         cols = [str(c) for c in df.columns]
     else:
-        text_path.write_text(f"# parse failed: {parse_error}\n", encoding="utf-8")
+        out_path.write_text(f"# parse failed: {parse_error}\n", encoding="utf-8")
         rows, cols = 0, []
 
     entry = {
         "original_name": safe_name,
-        "virtual_path": f"/uploads/{text_name}",
-        "raw_virtual_path": f"/uploads/{safe_name}",
+        "virtual_path": f"/uploads/{safe_name}",
         "rows": rows,
         "columns": cols,
         "parse_error": parse_error,

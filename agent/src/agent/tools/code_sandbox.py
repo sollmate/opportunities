@@ -1,7 +1,7 @@
-"""The ONE custom tool: a restricted code sandbox for ledger aggregation.
+"""The ONE custom tool: a restricted code sandbox for tabular aggregation.
 
 Uses RestrictedPython to compile a safe AST subset, then exec it with a tightly
-whitelisted namespace exposing only `df` (the ledger DataFrame), `pd`, and `np`.
+whitelisted namespace exposing only `df` (the loaded DataFrame), `pd`, and `np`.
 
 The LLM must assign its answer to `result`. All monetary arithmetic happens here,
 never in the model's head.
@@ -19,29 +19,42 @@ from RestrictedPython.Eval import default_guarded_getitem
 
 
 @tool
-def ledger_compute(code: str, ledger_path: str = "/ledger.json") -> str:
-    """Run a small Python snippet over the normalized DATEV ledger and return JSON.
+def ledger_compute(code: str, data_path: str = "/ledger.json") -> str:
+    """Run a small Python snippet over a user-uploaded data file and return JSON.
 
-    A pandas DataFrame named `df` is preloaded with columns:
-    amount, sign, account, contra_account, bu_key, doc_date, booking_text, amount_signed.
-    `pd` and `np` are available. Assign the final value to a variable named `result`.
+    Pass `data_path` as the virtual path to a user upload (the `virtual_path`
+    field in `/uploads/_index.json`) or to a JSON file. Excel uploads are stored
+    on disk as CSV text under their original `.xlsx`/`.xls` filename, so the
+    extension is just a label — contents are always CSV unless the extension is
+    `.json`. The file is loaded into a pandas DataFrame named `df` with whatever
+    columns it has. `pd` and `np` are available. Assign the final value to a
+    variable named `result`.
 
     Example:
-        code = "rev = df[df.account.str.startswith(('84','44'))].amount.sum(); result = float(rev)"
+        ledger_compute(
+            data_path="/uploads/bookings.xlsx",
+            code="result = float(df['amount'].sum())",
+        )
     """
     try:
         from src.config.settings import get_settings
         root = Path(get_settings().project_root).resolve()
-        rel = ledger_path.lstrip("/\\")
+        rel = data_path.lstrip("/\\")
         candidate = (root / rel).resolve()
         if not candidate.is_file():
             # Fallback: try CWD-relative path (e.g. running tests)
             candidate = Path(rel).resolve()
         if not candidate.is_file():
-            return json.dumps({"ok": False, "error": f"ledger not found at {ledger_path} (resolved: {candidate})"})
+            return json.dumps({"ok": False, "error": f"file not found at {data_path} (resolved: {candidate})"})
 
-        records = json.loads(candidate.read_text(encoding="utf-8"))
-        df = pd.DataFrame(records)
+        suffix = candidate.suffix.lower()
+        if suffix == ".json":
+            records = json.loads(candidate.read_text(encoding="utf-8"))
+            df = pd.DataFrame(records)
+        else:
+            # Every user upload is normalized to CSV-formatted text on disk,
+            # regardless of its original extension (.csv, .xlsx, .xls).
+            df = pd.read_csv(candidate)
 
         glb = dict(safe_globals)
         glb.update({

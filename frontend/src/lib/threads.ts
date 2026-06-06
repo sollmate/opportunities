@@ -14,16 +14,16 @@ export async function fetchThreads(): Promise<Thread[]> {
 }
 
 /**
- * Create a thread by uploading a DATEV export (CSV/Excel), optionally with a
- * master-data JSON companion. The backend opens an agent session and persists
- * the thread, returning it.
+ * Create a thread, optionally uploading a DATEV export (CSV/Excel) and a
+ * master-data JSON companion. Both files are optional — a text-only session
+ * is valid. The backend opens an agent session and persists the thread.
  */
 export async function createThread(
-  datevFile: File,
+  datevFile?: File,
   masterDataFile?: File,
 ): Promise<Thread> {
   const form = new FormData();
-  form.append("datev_file", datevFile);
+  if (datevFile) form.append("datev_file", datevFile);
   if (masterDataFile) form.append("master_data_file", masterDataFile);
   return apiUpload<Thread>("/api/threads", form);
 }
