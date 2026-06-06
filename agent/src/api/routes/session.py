@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -10,7 +11,7 @@ from sse_starlette.sse import EventSourceResponse
 from src.agent.supervisor import build_agent
 from src.api.schemas.master_data import MasterData
 from src.api.schemas.session import CreateSessionResponse, MessageRequest
-from src.config.settings import get_settings, ensure_workspace
+from src.config.settings import ensure_workspace
 from src.parsers.master_data import load_master_data
 from src.parsers.user_files import save_user_file
 from src.session.state import STORE
@@ -80,14 +81,19 @@ async def create_session(
     (see `fetch_master_data`) — only a caller that explicitly uploads a JSON
     file here causes `/master_data.json` to be written.
     """
-    workspace = ensure_workspace()
+    # Each session owns its own subdirectory under PROJECT_ROOT so uploads,
+    # /master_data.json, and the staged skills tree never collide across
+    # concurrent sessions.
+    session_id = uuid.uuid4().hex
+    session_dir = ensure_workspace() / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
 
     upload_entry: dict | None = None
     ledger_rows = 0
     if datev_file is not None:
         raw = await datev_file.read()
         try:
-            upload_entry = save_user_file(raw, datev_file.filename or "upload.csv", str(workspace))
+            upload_entry = save_user_file(raw, datev_file.filename or "upload.csv", str(session_dir))
         except ValueError as exc:
             raise HTTPException(status_code=415, detail=str(exc)) from exc
         except Exception as exc:
@@ -101,18 +107,15 @@ async def create_session(
         md, missing = load_master_data(md_bytes)
         master_data = md
         missing_fields = missing.fields
-        Path(workspace, "master_data.json").write_text(
+        Path(session_dir, "master_data.json").write_text(
             master_data.model_dump_json(), encoding="utf-8"
         )
     else:
         master_data = MasterData()
-        # Ensure no stale master_data.json from a previous session leaks across.
-        stale = Path(workspace, "master_data.json")
-        if stale.exists():
-            stale.unlink()
 
     s = STORE.create(
-        root_dir=str(workspace),
+        session_id=session_id,
+        root_dir=str(session_dir),
         skr_variant=master_data.skr_variant,
         master_data=master_data,
         missing_fields=missing_fields,

@@ -23,8 +23,8 @@ class SessionStore:
         self._data: dict[str, Session] = {}
         self._lock = Lock()
 
-    def create(self, **kwargs) -> Session:
-        sid = uuid.uuid4().hex
+    def create(self, *, session_id: str | None = None, **kwargs) -> Session:
+        sid = session_id or uuid.uuid4().hex
         s = Session(session_id=sid, **kwargs)
         with self._lock:
             self._data[sid] = s
