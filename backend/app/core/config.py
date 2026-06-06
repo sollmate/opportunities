@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     pg_user: str = ""
     pg_pool_max_size: int = 10
     pg_command_timeout: float = 30.0
+    # Optional path to a CA bundle for verifying the Postgres server cert.
+    # Empty = verify against the system trust store (works for Azure Postgres,
+    # whose certs chain to public CAs).
+    pg_ssl_root_cert: str = ""
 
     @field_validator("cors_origins", mode="before")
     @classmethod
