@@ -1,0 +1,119 @@
+name: Deploy
+
+# Build changed services and roll the matching Azure Container App.
+# Auth is passwordless via GitHub OIDC -> the user-assigned identity
+# `id-opportunities-gha` (AcrPush on acrsollmate, Contributor on the RG).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# OIDC needs id-token: write; checkout needs contents: read.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: rg-opportunities-agent
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Detect which service folders changed so we only build/deploy those.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      agent: ${{ steps.filter.outputs.agent }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            agent:
+              - 'agent/**'
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  deploy-agent:
+    needs: changes
+    if: needs.changes.outputs.agent == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Build & push image
+        run: |
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image ca-opportunities-agent-api:${{ github.sha }} \
+            --image ca-opportunities-agent-api:latest \
+            --file agent/Dockerfile agent
+      - name: Update container app
+        run: |
+          az containerapp update \
+            --name ca-opportunities-agent-api \
+            --resource-group $RESOURCE_GROUP \
+            --image ${{ vars.ACR_NAME }}.azurecr.io/ca-opportunities-agent-api:${{ github.sha }}
+
+  deploy-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Build & push image
+        run: |
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image opportunities-backend:${{ github.sha }} \
+            --image opportunities-backend:latest \
+            --file backend/Dockerfile backend
+      - name: Update container app
+        run: |
+          az containerapp update \
+            --name ca-opportunities-backend \
+            --resource-group $RESOURCE_GROUP \
+            --image ${{ vars.ACR_NAME }}.azurecr.io/opportunities-backend:${{ github.sha }}
+
+  deploy-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Build & push image
+        # NEXT_PUBLIC_* is inlined at build time, so the backend URL is baked in here.
+        run: |
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image opportunities-web:${{ github.sha }} \
+            --image opportunities-web:latest \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=${{ vars.BACKEND_API_URL }} \
+            --file frontend/Dockerfile frontend
+      - name: Update container app
+        run: |
+          az containerapp update \
+            --name ca-opportunities-web \
+            --resource-group $RESOURCE_GROUP \
+            --image ${{ vars.ACR_NAME }}.azurecr.io/opportunities-web:${{ github.sha }}
