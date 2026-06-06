@@ -12,7 +12,7 @@ from src.api.schemas.master_data import MasterData
 class Session:
     session_id: str
     root_dir: str
-    skr_variant: str
+    skr_variant: str | None
     master_data: MasterData
     missing_fields: list[str] = field(default_factory=list)
     history: list[dict] = field(default_factory=list)

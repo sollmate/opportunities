@@ -20,25 +20,33 @@ router = APIRouter(prefix="/tax-advisory", tags=["tax-advisory"])
 
 @router.post("/session", response_model=CreateSessionResponse)
 async def create_session(
-    datev_file: UploadFile = File(..., description="DATEV EXTF Buchungsstapel CSV or Excel"),
+    datev_file: UploadFile | None = File(None, description="DATEV EXTF Buchungsstapel CSV or Excel"),
     master_data_file: UploadFile | None = File(None, description="Master-data companion JSON"),
 ) -> CreateSessionResponse:
-    """Ingest the DATEV export + optional master data; normalize into the virtual FS."""
-    workspace = ensure_workspace()
-    raw = await datev_file.read()
-    try:
-        df = parse_datev(raw, datev_file.filename or "upload.csv")
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"DATEV parse failed: {exc}") from exc
-    if df.empty:
-        raise HTTPException(status_code=422, detail="No booking rows found.")
+    """Ingest the DATEV export + optional master data; normalize into the virtual FS.
 
-    skr = detect_skr(df)
-    write_ledger_json(df, str(workspace))
+    Both files are optional: a session can be created without any uploads for
+    text-only Q&A. Files can also be attached later via the /file endpoint.
+    """
+    workspace = ensure_workspace()
+
+    skr: str | None = None
+    ledger_rows = 0
+    if datev_file is not None:
+        raw = await datev_file.read()
+        try:
+            df = parse_datev(raw, datev_file.filename or "upload.csv")
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"DATEV parse failed: {exc}") from exc
+        if df.empty:
+            raise HTTPException(status_code=422, detail="No booking rows found.")
+        skr = detect_skr(df)
+        write_ledger_json(df, str(workspace))
+        ledger_rows = len(df)
 
     md_bytes = await master_data_file.read() if master_data_file else None
     master_data, missing = load_master_data(md_bytes)
-    if master_data.skr_variant is None:
+    if master_data.skr_variant is None and skr is not None:
         master_data.skr_variant = skr
 
     # Persist master data for the agent
@@ -54,7 +62,7 @@ async def create_session(
     )
     return CreateSessionResponse(
         session_id=s.session_id,
-        ledger_rows=len(df),
+        ledger_rows=ledger_rows,
         skr_variant=skr,
         master_data_complete=not missing.fields,
         missing_fields=missing.fields,
