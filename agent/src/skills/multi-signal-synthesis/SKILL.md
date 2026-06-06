@@ -21,7 +21,11 @@ After the statutory checks, to connect signals such as:
 → a proactive "you are trending toward Regelbesteuerung + higher compliance load" observation.
 
 ## Procedure
-1. Pull each underlying figure with `ledger_compute` — **never estimate a number**.
+1. Pull each underlying figure with `ledger_compute` against the relevant upload
+   (`data_path` = the upload's `virtual_path` from `/uploads/_index.json`) —
+   **never estimate a number**. If no DATEV-shaped upload exists, fall back to
+   figures already on `master_data` or the prior statutory triggers'
+   `computed_values`; do not invent numbers.
 2. State the individual signals, then the combined observation in one or two sentences.
 3. Set `confidence` from **signal agreement**: several aligned signals → "medium"; a single
    soft signal → "low". Reserve "high" for cases where the synthesis is near-certain.

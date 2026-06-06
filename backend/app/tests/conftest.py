@@ -42,8 +42,8 @@ class FakeAgent:
 
     async def create_session(
         self,
-        datev_filename,
-        datev_bytes,
+        datev_filename=None,
+        datev_bytes=None,
         master_filename=None,
         master_bytes=None,
         access_token=None,

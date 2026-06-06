@@ -5,11 +5,9 @@ import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 interface ChatInputProps {
   onSend: (content: string, files: File[]) => void;
   disabled: boolean;
-  /** When true, attaching a DATEV file is required to start the conversation. */
-  requireFile: boolean;
 }
 
-export function ChatInput({ onSend, disabled, requireFile }: ChatInputProps) {
+export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -46,12 +44,6 @@ export function ChatInput({ onSend, disabled, requireFile }: ChatInputProps) {
       onSubmit={handleSubmit}
       className="mx-auto flex w-full max-w-3xl flex-col gap-2 border-t border-charcoal p-4"
     >
-      {requireFile && files.length === 0 && (
-        <p className="text-xs text-mute">
-          Attach a DATEV export (CSV/Excel) to start the conversation.
-        </p>
-      )}
-
       {files.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {files.map((f) => (

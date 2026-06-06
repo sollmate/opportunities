@@ -15,8 +15,8 @@ def parse_datev(raw: bytes, filename: str) -> pd.DataFrame:
     Returns columns: amount, sign, account, contra_account, bu_key,
                      doc_date, booking_text, amount_signed.
     """
-    if filename.endswith((".xlsx", ".xls")):
-        df = pd.read_excel(io.BytesIO(raw), header=1)
+    if filename.lower().endswith((".xlsx", ".xls")):
+        df = _read_datev_excel(raw)
     else:
         # EXTF format: first row is metadata header, second row is column names
         text = raw.decode("iso-8859-1")
@@ -73,7 +73,7 @@ def _build_column_map(columns: list[str]) -> dict[str, str]:
     """Map DATEV column names (German) to normalized English names."""
     mapping = {}
     for col in columns:
-        lower = col.lower().strip().strip('"')
+        lower = str(col).lower().strip().strip('"')
         # Main amount column: "Umsatz (ohne Soll/Haben-Kz)" — primary, not "Basis-Umsatz"
         if lower.startswith("umsatz") and "kennz" not in lower:
             mapping[col] = "amount"
@@ -90,6 +90,23 @@ def _build_column_map(columns: list[str]) -> dict[str, str]:
         elif "buchungstext" in lower:
             mapping[col] = "booking_text"
     return mapping
+
+
+def _read_datev_excel(raw: bytes) -> pd.DataFrame:
+    """Read a DATEV Excel export, auto-detecting the header row.
+
+    DATEV exports may carry an EXTF metadata row above the column names, or
+    place column names on the first row. Scans the first few rows for the
+    "Umsatz" header column and reads from there; falls back to header=0.
+    """
+    probe = pd.read_excel(io.BytesIO(raw), header=None, nrows=5)
+    header_idx = 0
+    for i in range(len(probe)):
+        cells = [str(c).lower().strip().strip('"') for c in probe.iloc[i].tolist()]
+        if any(c.startswith("umsatz") for c in cells):
+            header_idx = i
+            break
+    return pd.read_excel(io.BytesIO(raw), header=header_idx)
 
 
 def detect_skr(df: pd.DataFrame) -> str:

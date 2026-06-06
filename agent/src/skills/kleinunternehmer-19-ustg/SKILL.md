@@ -26,8 +26,13 @@ year-end-prognosis grace mechanism for the upper limit.
 
 ## Expected inputs
 - `master_data.prior_year_net_turnover`, `master_data.current_year_turnover`.
-- If either is absent, compute current-year taxable revenue from the ledger and ask the
-  consultant for the prior-year figure via the master-data interview.
+- If `current_year_turnover` is absent, compute it from a **DATEV-shaped upload**
+  (per the user-uploaded-files skill: an `/uploads/<original_name>` with at least
+  `account` and `amount` columns — the extension can be `.csv`, `.xlsx`, or `.xls`).
+  If no DATEV-shaped upload exists, ask the consultant for the current-year figure
+  instead of guessing.
+- For the prior-year figure, ask the consultant via the master-data interview if it
+  isn't present.
 
 ## SKR account anchors (revenue)
 | Meaning | SKR03 | SKR04 |
@@ -40,8 +45,10 @@ Resolve the active SKR variant from `master_data.skr_variant` (it overrides the 
 heuristic). Use the matching account prefixes below.
 
 ## Procedure
-1. Compute current-year revenue via `ledger_compute` (never sum in your head). Example for SKR04:
-   `code = "rev = df[df.account.str.startswith(('43','44','41','42'))].amount.sum(); result = float(rev)"`
+1. Compute current-year revenue via `ledger_compute` against the DATEV-shaped upload
+   (never sum in your head). Example for SKR04:
+   `ledger_compute(data_path="/uploads/<original_name>",
+                  code="rev = df[df.account.astype(str).str.startswith(('43','44','41','42'))].amount.sum(); result = float(rev)")`
    For SKR03 use the `('83','84','81','82')` prefixes.
 2. Compare the computed current-year figure against 100.000 € and the supplied prior-year
    net figure against 25.000 €.

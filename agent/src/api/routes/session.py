@@ -10,7 +10,6 @@ from sse_starlette.sse import EventSourceResponse
 from src.agent.supervisor import build_agent
 from src.api.schemas.session import CreateSessionResponse, MessageRequest
 from src.config.settings import get_settings, ensure_workspace
-from src.parsers.datev_parser import detect_skr, parse_datev, write_ledger_json
 from src.parsers.master_data import load_master_data
 from src.parsers.user_files import save_user_file
 from src.session.state import STORE
@@ -18,36 +17,75 @@ from src.session.state import STORE
 router = APIRouter(prefix="/tax-advisory", tags=["tax-advisory"])
 
 
+def _extract_text(content) -> str:
+    """Anthropic streaming chunks carry content as a list of typed blocks.
+
+    Pull out only the text deltas so the wire payload stays a plain string;
+    skip tool-input deltas and any other non-text blocks.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                t = block.get("text")
+                if isinstance(t, str):
+                    parts.append(t)
+            elif isinstance(block, str):
+                parts.append(block)
+        return "".join(parts)
+    return ""
+
+
+def _upload_note(entry: dict) -> str:
+    """System-style nudge added to the chat history when a file is uploaded.
+
+    Tells the agent the file exists, where it lives, and that it should be
+    considered when answering. Surfaces a quick column preview so the agent
+    can decide relevance without opening the file first.
+    """
+    cols = entry.get("columns") or []
+    col_preview = ", ".join(str(c) for c in cols[:8])
+    if len(cols) > 8:
+        col_preview += ", …"
+    return (
+        f"[System] The user uploaded `{entry['original_name']}`. "
+        f"It is available at `{entry['virtual_path']}` "
+        f"({entry.get('rows', 0)} rows; columns: {col_preview}). "
+        "Take it into consideration when answering — it may contain data "
+        "relevant to the user's question. The full catalog is at "
+        "`/uploads/_index.json`; read this file per the user-uploaded-files skill."
+    )
+
+
 @router.post("/session", response_model=CreateSessionResponse)
 async def create_session(
-    datev_file: UploadFile | None = File(None, description="DATEV EXTF Buchungsstapel CSV or Excel"),
+    datev_file: UploadFile | None = File(None, description="Optional CSV or Excel upload"),
     master_data_file: UploadFile | None = File(None, description="Master-data companion JSON"),
 ) -> CreateSessionResponse:
-    """Ingest the DATEV export + optional master data; normalize into the virtual FS.
+    """Open a session, optionally attaching a CSV/Excel + master data.
 
-    Both files are optional: a session can be created without any uploads for
-    text-only Q&A. Files can also be attached later via the /file endpoint.
+    Uploads are stored as generic user files under `/uploads/` and indexed in
+    `/uploads/_index.json`; the agent reads them per the user-uploaded-files
+    skill. No DATEV-specific parsing is required.
     """
     workspace = ensure_workspace()
 
-    skr: str | None = None
+    upload_entry: dict | None = None
     ledger_rows = 0
     if datev_file is not None:
         raw = await datev_file.read()
         try:
-            df = parse_datev(raw, datev_file.filename or "upload.csv")
+            upload_entry = save_user_file(raw, datev_file.filename or "upload.csv", str(workspace))
+        except ValueError as exc:
+            raise HTTPException(status_code=415, detail=str(exc)) from exc
         except Exception as exc:
-            raise HTTPException(status_code=422, detail=f"DATEV parse failed: {exc}") from exc
-        if df.empty:
-            raise HTTPException(status_code=422, detail="No booking rows found.")
-        skr = detect_skr(df)
-        write_ledger_json(df, str(workspace))
-        ledger_rows = len(df)
+            raise HTTPException(status_code=422, detail=f"upload failed: {exc}") from exc
+        ledger_rows = int(upload_entry.get("rows") or 0)
 
     md_bytes = await master_data_file.read() if master_data_file else None
     master_data, missing = load_master_data(md_bytes)
-    if master_data.skr_variant is None and skr is not None:
-        master_data.skr_variant = skr
 
     # Persist master data for the agent
     Path(workspace, "master_data.json").write_text(
@@ -56,14 +94,16 @@ async def create_session(
 
     s = STORE.create(
         root_dir=str(workspace),
-        skr_variant=skr,
+        skr_variant=master_data.skr_variant,
         master_data=master_data,
         missing_fields=missing.fields,
     )
+    if upload_entry is not None:
+        s.history.append({"role": "user", "content": _upload_note(upload_entry)})
     return CreateSessionResponse(
         session_id=s.session_id,
         ledger_rows=ledger_rows,
-        skr_variant=skr,
+        skr_variant=master_data.skr_variant,
         master_data_complete=not missing.fields,
         missing_fields=missing.fields,
     )
@@ -83,13 +123,7 @@ async def upload_file(session_id: str, file: UploadFile = File(..., description=
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"upload failed: {exc}") from exc
 
-    note = (
-        f"[System] User uploaded `{entry['original_name']}` → "
-        f"`{entry['virtual_path']}` ({entry['rows']} rows, columns: {entry['columns'][:8]}"
-        f"{'…' if len(entry['columns']) > 8 else ''}). "
-        "Catalog at `/uploads/_index.json`. Read per the user-uploaded-files skill."
-    )
-    s.history.append({"role": "user", "content": note})
+    s.history.append({"role": "user", "content": _upload_note(entry)})
     return entry
 
 
@@ -113,8 +147,9 @@ async def message(session_id: str, body: MessageRequest):
                 etype = ev["event"]
                 if etype == "on_chat_model_stream":
                     chunk = ev["data"]["chunk"]
-                    if getattr(chunk, "content", ""):
-                        yield {"event": "token", "data": chunk.content}
+                    text = _extract_text(getattr(chunk, "content", ""))
+                    if text:
+                        yield {"event": "token", "data": text}
                 elif etype == "on_tool_start":
                     yield {
                         "event": "tool_start",

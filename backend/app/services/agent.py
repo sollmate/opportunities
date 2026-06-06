@@ -29,13 +29,13 @@ class AgentService(Protocol):
 
     async def create_session(
         self,
-        datev_filename: str,
-        datev_bytes: bytes,
+        datev_filename: str | None = None,
+        datev_bytes: bytes | None = None,
         master_filename: str | None = None,
         master_bytes: bytes | None = None,
         access_token: str | None = None,
     ) -> str:
-        """Upload a DATEV export, returning the agent's session id."""
+        """Open an agent session, optionally with a DATEV upload, returning the session id."""
         ...
 
     def stream_message(
@@ -76,19 +76,20 @@ class AgentClient:
 
     async def create_session(
         self,
-        datev_filename: str,
-        datev_bytes: bytes,
+        datev_filename: str | None = None,
+        datev_bytes: bytes | None = None,
         master_filename: str | None = None,
         master_bytes: bytes | None = None,
         access_token: str | None = None,
     ) -> str:
         form = aiohttp.FormData()
-        form.add_field(
-            "datev_file",
-            datev_bytes,
-            filename=datev_filename or "upload.csv",
-            content_type="application/octet-stream",
-        )
+        if datev_bytes is not None:
+            form.add_field(
+                "datev_file",
+                datev_bytes,
+                filename=datev_filename or "upload.csv",
+                content_type="application/octet-stream",
+            )
         if master_bytes is not None:
             form.add_field(
                 "master_data_file",

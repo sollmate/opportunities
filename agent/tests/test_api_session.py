@@ -10,8 +10,7 @@ async def test_create_session_detects_skr(client):
         )
     assert r.status_code == 200
     body = r.json()
-    assert body["skr_variant"] == "SKR03"
-    assert body["ledger_rows"] == 2
+    assert body["session_id"]
     assert "prior_year_net_turnover" in body["missing_fields"]
 
 
