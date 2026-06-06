@@ -1,19 +1,100 @@
 @import "tailwindcss";
 
+/* —————————————————————————————————————————————————————————————
+   SollMate design tokens — engineered from the colors-dark-surfaces
+   and colors-primary references. Dark-only product surface.
+   ————————————————————————————————————————————————————————————— */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Dark surfaces */
+  --sm-ink: #1a1a1e;
+  --sm-ink-2: #252525;
+  --sm-ink-3: #2e2e33;
+  --sm-charcoal: #3a3a40;
+
+  /* Primary accent — lavender */
+  --sm-primary: #c8b8f0;
+  --sm-primary-deep: #9b7fe0; /* hover / pressed */
+  --sm-primary-soft: #e8dff5;
+
+  /* Semantic */
+  --sm-info: #00bcd4; /* cyan — success / info / chart strokes */
+  --sm-danger: #e0479e; /* magenta — danger only */
+
+  /* Text */
+  --sm-text: #f4f4f2;
+  --sm-mute: #8b8b93;
+
+  /* Fonts — bound to next/font variables set on <html> */
+  --font-display: var(--font-sans-src, "Open Sans", system-ui, sans-serif);
+  --font-sans: var(--font-sans-src, "Open Sans", system-ui, sans-serif);
+  --font-mono: var(--font-mono-src, ui-monospace, "JetBrains Mono", monospace);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Map tokens to Tailwind v4 utilities (bg-ink, text-mute, border-charcoal…) */
+@theme inline {
+  --color-ink: var(--sm-ink);
+  --color-ink-2: var(--sm-ink-2);
+  --color-ink-3: var(--sm-ink-3);
+  --color-charcoal: var(--sm-charcoal);
+  --color-primary: var(--sm-primary);
+  --color-primary-deep: var(--sm-primary-deep);
+  --color-primary-soft: var(--sm-primary-soft);
+  --color-info: var(--sm-info);
+  --color-danger: var(--sm-danger);
+  --color-text: var(--sm-text);
+  --color-mute: var(--sm-mute);
+
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, sans-serif;
+  background: var(--sm-ink);
+  color: var(--sm-text);
+  font-family: var(--font-sans);
+}
+
+/* ——— shared effects lifted from the prototype ——— */
+
+/* blinking search caret */
+@keyframes sm-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* lavender pulse pip on active/in-progress threads */
+@keyframes sm-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(200, 184, 240, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(200, 184, 240, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(200, 184, 240, 0);
+  }
+}
+
+/* thin sidebar scrollbar */
+.sm-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sm-scroll::-webkit-scrollbar-thumb {
+  background: var(--sm-charcoal);
+  border-radius: 2px;
+}
+
+/* search-match highlight */
+mark.sm-mark {
+  background: rgba(200, 184, 240, 0.18);
+  color: var(--sm-text);
+  padding: 0 1px;
+  border-radius: 2px;
 }

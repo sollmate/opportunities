@@ -30,10 +30,10 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <form
         onSubmit={handleSubmit}
-        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-gray-200 p-6 dark:border-gray-800"
+        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-charcoal bg-ink-2 p-6"
       >
-        <h1 className="text-lg font-semibold">Sign in</h1>
-        <p className="text-sm text-gray-400">
+        <h1 className="text-lg font-semibold text-text">Sign in</h1>
+        <p className="text-sm text-mute">
           Authentication is a stub — any email and password will work.
         </p>
         <input
@@ -42,7 +42,7 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-700"
+          className="rounded-lg border border-charcoal bg-ink px-3 py-2 text-sm text-text placeholder:text-mute focus:border-primary/40 focus:outline-none"
         />
         <input
           type="password"
@@ -50,17 +50,17 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-700"
+          className="rounded-lg border border-charcoal bg-ink px-3 py-2 text-sm text-text placeholder:text-mute focus:border-primary/40 focus:outline-none"
         />
         {error && (
-          <p className="text-sm text-red-500" role="alert">
+          <p className="text-sm text-danger" role="alert">
             {error}
           </p>
         )}
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-primary-deep hover:text-white disabled:opacity-50"
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>

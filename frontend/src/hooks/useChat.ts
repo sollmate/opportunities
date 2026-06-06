@@ -11,6 +11,21 @@ export function useChat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Start a fresh conversation (the "New chat" action).
+  const reset = useCallback(() => {
+    setMessages([]);
+    setConversationId(null);
+    setError(null);
+  }, []);
+
+  // Switch to an existing thread. Message history is owned by the agent
+  // backend, so until that lands the window opens empty for the selected id.
+  const openConversation = useCallback((id: string) => {
+    setConversationId(id);
+    setMessages([]);
+    setError(null);
+  }, []);
+
   const send = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
@@ -42,5 +57,5 @@ export function useChat() {
     [messages, conversationId, loading],
   );
 
-  return { messages, send, loading, error };
+  return { messages, send, loading, error, reset, openConversation, conversationId };
 }

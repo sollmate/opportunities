@@ -1,18 +1,23 @@
 "use client";
 
-import { useChat } from "@/hooks/useChat";
+import type { Message } from "@/types/chat";
 
 import { ChatInput } from "./ChatInput";
 import { MessageList } from "./MessageList";
 
-export function ChatWindow() {
-  const { messages, send, loading, error } = useChat();
+interface ChatWindowProps {
+  messages: Message[];
+  send: (content: string) => void;
+  loading: boolean;
+  error: string | null;
+}
 
+export function ChatWindow({ messages, send, loading, error }: ChatWindowProps) {
   return (
-    <div className="mx-auto flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <MessageList messages={messages} loading={loading} />
       {error && (
-        <p className="px-4 py-2 text-sm text-red-500" role="alert">
+        <p className="px-4 py-2 text-sm text-danger" role="alert">
           {error}
         </p>
       )}
