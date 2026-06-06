@@ -4,6 +4,8 @@ const PATHS = {
   plus: "M12 5v14M5 12h14",
   search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16 16l4 4",
   panel: "M4 5h16v14H4zM10 5v14",
+  chat: "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 4z",
+  data: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
 } as const;
 
 export type IconName = keyof typeof PATHS;
