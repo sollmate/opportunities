@@ -13,18 +13,14 @@ def test_health_is_liveness_only(client: TestClient) -> None:
     assert resp.json() == {"status": "ok"}
 
 
-def test_ready_ok_when_db_unconfigured(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_ready_ok_when_db_unconfigured(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(db, "is_configured", lambda: False)
     resp = client.get("/api/ready")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok", "database": "unconfigured"}
 
 
-def test_ready_up_when_db_healthy(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_ready_up_when_db_healthy(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(db, "is_configured", lambda: True)
 
     async def fake_healthcheck() -> bool:
@@ -36,9 +32,7 @@ def test_ready_up_when_db_healthy(
     assert resp.json() == {"status": "ok", "database": "up"}
 
 
-def test_ready_503_when_db_down(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_ready_503_when_db_down(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(db, "is_configured", lambda: True)
 
     async def fake_healthcheck() -> bool:

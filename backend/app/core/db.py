@@ -113,9 +113,7 @@ async def disconnect() -> None:
 def get_pool() -> asyncpg.Pool:
     """Return the live pool, or raise if the DB layer is not initialized."""
     if _pool is None:
-        raise RuntimeError(
-            "Database pool is not initialized — check PG_* settings and startup."
-        )
+        raise RuntimeError("Database pool is not initialized — check PG_* settings and startup.")
     return _pool
 
 
