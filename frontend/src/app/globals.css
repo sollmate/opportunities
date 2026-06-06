@@ -17,8 +17,10 @@
   --sm-primary-soft: #e8dff5;
 
   /* Semantic */
-  --sm-info: #00bcd4; /* cyan — success / info / chart strokes */
+  --sm-info: #00bcd4; /* cyan — in-progress / info / chart strokes */
+  --sm-success: #84cfc0; /* mint — positive / active / live state */
   --sm-danger: #e0479e; /* magenta — danger only */
+  --sm-danger-bg: rgba(224, 71, 158, 0.1); /* magenta tint — destructive hover wells */
 
   /* Text */
   --sm-text: #f4f4f2;
@@ -40,7 +42,9 @@
   --color-primary-deep: var(--sm-primary-deep);
   --color-primary-soft: var(--sm-primary-soft);
   --color-info: var(--sm-info);
+  --color-success: var(--sm-success);
   --color-danger: var(--sm-danger);
+  --color-danger-bg: var(--sm-danger-bg);
   --color-text: var(--sm-text);
   --color-mute: var(--sm-mute);
 
@@ -66,6 +70,13 @@ body {
 @keyframes sm-blink {
   50% {
     opacity: 0;
+  }
+}
+
+/* spinner rotation — form submitting state, loading buttons */
+@keyframes sm-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
