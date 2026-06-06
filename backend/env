@@ -1,0 +1,4 @@
+CORS_ORIGINS=http://localhost:3000
+AZURE_TENANT_ID=ba721dfa-e5f0-48e0-8072-9d34fa17792b
+AZURE_CLIENT_ID=821bf13a-4de3-47ea-ac7f-c33fd48e5d13
+AZURE_REQUIRED_ROLE=opportunities.access
