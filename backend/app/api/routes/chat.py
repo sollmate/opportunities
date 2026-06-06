@@ -58,10 +58,16 @@ async def chat(
                 agent_session_id, request.text, access_token
             ):
                 if event == "final":
+                    # Anthropic streams `content` as a list of typed blocks
+                    # (e.g. [{"type": "text", "text": "..."}]). Flatten to a
+                    # plain string on the wire so the frontend can render it
+                    # directly without knowing about content-block shapes, and
+                    # persist the same string.
                     try:
                         final_content = _content_to_text(json.loads(data).get("content", ""))
                     except (json.JSONDecodeError, AttributeError):
                         final_content = data
+                    data = json.dumps({"content": final_content})
                 yield {"event": event, "data": data}
         except AgentError as exc:
             yield {"event": "error", "data": json.dumps({"error": str(exc)})}
