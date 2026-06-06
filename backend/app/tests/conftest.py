@@ -8,8 +8,9 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_agent_service, get_current_user
 from app.main import app
 from app.schemas.chat import Message
+from app.schemas.client import Address, Client, Contact, Industry
 from app.schemas.thread import Thread
-from app.services import threads_store
+from app.services import masterdata_store, threads_store
 
 TEST_USER = "test-user"
 
@@ -128,3 +129,62 @@ def chat_client(authed_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> I
         yield authed_client
     finally:
         app.dependency_overrides.pop(get_agent_service, None)
+
+
+@pytest.fixture
+def clients_client(
+    authed_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[TestClient]:
+    """Authed client with the client master-data store faked in memory."""
+    clients: dict[str, Client] = {}
+
+    def _build(client_id: str, payload) -> Client:
+        return Client(
+            client_id=client_id,
+            contacts=[
+                Contact(contact_id=f"{client_id}-c{i}", **c.model_dump())
+                for i, c in enumerate(payload.contacts)
+            ],
+            addresses=[
+                Address(address_id=f"{client_id}-a{i}", **a.model_dump())
+                for i, a in enumerate(payload.addresses)
+            ],
+            **payload.model_dump(exclude={"contacts", "addresses"}),
+        )
+
+    async def list_clients():
+        return list(clients.values())
+
+    async def get_client(client_id):
+        return clients.get(client_id)
+
+    async def create_client(payload):
+        client_id = uuid4().hex
+        client = _build(client_id, payload)
+        clients[client_id] = client
+        return client
+
+    async def update_client(client_id, payload):
+        if client_id not in clients:
+            return None
+        client = _build(client_id, payload)
+        clients[client_id] = client
+        return client
+
+    async def delete_client(client_id):
+        return clients.pop(client_id, None) is not None
+
+    async def list_industries():
+        return [Industry(industry_id=1, code="62", name="Information technology")]
+
+    for name, fn in {
+        "list_clients": list_clients,
+        "get_client": get_client,
+        "create_client": create_client,
+        "update_client": update_client,
+        "delete_client": delete_client,
+        "list_industries": list_industries,
+    }.items():
+        monkeypatch.setattr(masterdata_store, name, fn)
+
+    yield authed_client
