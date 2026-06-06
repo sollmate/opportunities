@@ -14,14 +14,14 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
   { href: "/chat", label: "Chat", icon: "chat" },
-  { href: "/masterdata", label: "Master data", icon: "data" },
+  { href: "/masterdata", label: "Clients", icon: "data" },
 ];
 
 interface SidebarNavProps {
   collapsed: boolean;
 }
 
-/** Module switcher shown under the logo: Chat · Master data. */
+/** Module switcher shown under the logo: Chat · Clients. */
 export function SidebarNav({ collapsed }: SidebarNavProps) {
   const pathname = usePathname();
 

@@ -71,7 +71,7 @@ export default function MasterDataPage() {
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-none items-center justify-between border-b border-charcoal px-6 py-3">
-          <h1 className="text-sm font-semibold text-text">Master data</h1>
+          <h1 className="text-sm font-semibold text-text">Clients</h1>
           <UserMenu
             name={session.user?.name ?? session.user?.email ?? "You"}
             email={session.user?.email}
