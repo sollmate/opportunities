@@ -13,6 +13,8 @@ stubbed elsewhere).
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 import ssl
 
@@ -28,11 +30,17 @@ _PG_TOKEN_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 
 _pool: asyncpg.Pool | None = None
 _credential: DefaultAzureCredential | None = None
+_resolved_user: str | None = None
 
 
 def is_configured() -> bool:
-    """True when enough PG settings are present to attempt a connection."""
-    return bool(settings.pg_host and settings.pg_database and settings.pg_user)
+    """True when enough PG settings are present to attempt a connection.
+
+    ``pg_user`` is optional: when omitted we derive it from the Entra token
+    (see ``_resolve_user``), which means a local ``az login`` is enough to
+    connect without putting your UPN in ``.env``.
+    """
+    return bool(settings.pg_host and settings.pg_database)
 
 
 def _build_ssl_context() -> ssl.SSLContext:
@@ -63,6 +71,46 @@ async def _fetch_token() -> str:
     return token.token
 
 
+def _principal_from_token(token: str) -> str | None:
+    """Best-effort extraction of the database role name from an Entra token.
+
+    For user tokens (local ``az login``) the ``upn`` claim holds the UPN, which
+    is exactly the name Azure Postgres uses for the Entra principal. For
+    managed-identity tokens the ``upn`` claim is absent; the caller should
+    supply ``PG_USER`` explicitly in that environment.
+    """
+    try:
+        payload_b64 = token.split(".")[1]
+        # JWT base64url, pad to a multiple of 4.
+        payload_b64 += "=" * (-len(payload_b64) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload_b64))
+    except Exception:
+        return None
+    for key in ("upn", "preferred_username", "unique_name"):
+        value = claims.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+async def _resolve_user() -> str | None:
+    """Return the database role name to connect as.
+
+    ``PG_USER`` wins when set (required in Azure, where it's the managed
+    identity's name). Otherwise we derive it from the Entra access token's
+    ``upn`` claim, which means a developer with ``az login`` doesn't need to
+    put their UPN in ``.env``.
+    """
+    if settings.pg_user:
+        return settings.pg_user
+    assert _credential is not None
+    token = (await _credential.get_token(_PG_TOKEN_SCOPE)).token
+    user = _principal_from_token(token)
+    if user:
+        logger.info("PG_USER not set; resolved %s from Entra token.", user)
+    return user
+
+
 async def connect() -> None:
     """Create the global connection pool. No-op if already created or unconfigured.
 
@@ -72,7 +120,7 @@ async def connect() -> None:
     boot. ``healthcheck()`` retries the connection later, so the app recovers on
     its own once the database is reachable again.
     """
-    global _pool, _credential
+    global _pool, _credential, _resolved_user
     if _pool is not None or not is_configured():
         return
 
@@ -86,12 +134,25 @@ async def connect() -> None:
         _credential = DefaultAzureCredential(
             managed_identity_client_id=settings.pg_mi_client_id or None
         )
+
+    user = settings.pg_user
     try:
+        if not user:
+            user = await _resolve_user()
+        if not user:
+            logger.error(
+                "Cannot determine PG user: PG_USER is unset and the Entra "
+                "token has no upn/preferred_username claim (this is normal "
+                "for managed identity tokens — set PG_USER explicitly in "
+                "that case)."
+            )
+            return
+        _resolved_user = user
         _pool = await asyncpg.create_pool(
             host=settings.pg_host,
             port=settings.pg_port,
             database=settings.pg_database,
-            user=settings.pg_user,
+            user=user,
             password=_fetch_token,
             ssl=_build_ssl_context(),
             min_size=1,
@@ -109,13 +170,14 @@ async def connect() -> None:
 
 async def disconnect() -> None:
     """Close the pool and credential. Safe to call when nothing was opened."""
-    global _pool, _credential
+    global _pool, _credential, _resolved_user
     if _pool is not None:
         await _pool.close()
         _pool = None
     if _credential is not None:
         await _credential.close()
         _credential = None
+    _resolved_user = None
 
 
 def get_pool() -> asyncpg.Pool:

@@ -71,16 +71,29 @@ export async function* streamSSE(
   const decoder = new TextDecoder();
   let buffer = "";
 
+  // Find the next SSE frame boundary, which per spec can be \n\n, \r\n\r\n, or
+  // \r\r. sse-starlette (our backend) emits \r\n line endings, so the naive
+  // \n\n search misses every frame.
+  const findFrameEnd = (buf: string): { index: number; sepLen: number } | null => {
+    let best: { index: number; sepLen: number } | null = null;
+    for (const sep of ["\r\n\r\n", "\n\n", "\r\r"] as const) {
+      const i = buf.indexOf(sep);
+      if (i !== -1 && (best === null || i < best.index)) {
+        best = { index: i, sepLen: sep.length };
+      }
+    }
+    return best;
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
-    // Frames are separated by a blank line.
-    let sep: number;
-    while ((sep = buffer.indexOf("\n\n")) !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
+    let next;
+    while ((next = findFrameEnd(buffer)) !== null) {
+      const frame = buffer.slice(0, next.index);
+      buffer = buffer.slice(next.index + next.sepLen);
       const parsed = parseFrame(frame);
       if (parsed) yield parsed;
     }
@@ -90,7 +103,8 @@ export async function* streamSSE(
 function parseFrame(frame: string): StreamEvent | null {
   let event = "message";
   const dataParts: string[] = [];
-  for (const line of frame.split("\n")) {
+  // Per SSE spec, lines are separated by \n, \r\n, or \r.
+  for (const line of frame.split(/\r\n|\r|\n/)) {
     if (line.startsWith("event:")) {
       event = line.slice("event:".length).trim();
     } else if (line.startsWith("data:")) {
