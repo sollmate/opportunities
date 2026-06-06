@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     langsmith_api_key: str = ""
     langsmith_project: str = "tax-advisory-agent"
 
+    # Postgres (optional; if empty, the fetch_master_data tool returns an error)
+    database_url: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

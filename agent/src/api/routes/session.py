@@ -12,6 +12,7 @@ from src.api.schemas.session import CreateSessionResponse, MessageRequest
 from src.config.settings import get_settings, ensure_workspace
 from src.parsers.datev_parser import detect_skr, parse_datev, write_ledger_json
 from src.parsers.master_data import load_master_data
+from src.parsers.user_files import save_user_file
 from src.session.state import STORE
 
 router = APIRouter(prefix="/tax-advisory", tags=["tax-advisory"])
@@ -58,6 +59,30 @@ async def create_session(
         master_data_complete=not missing.fields,
         missing_fields=missing.fields,
     )
+
+
+@router.post("/session/{session_id}/file")
+async def upload_file(session_id: str, file: UploadFile = File(..., description="CSV or Excel file")):
+    """Attach an extra CSV/Excel file to a session; the agent will see it under /uploads/."""
+    s = STORE.get(session_id)
+    if s is None:
+        raise HTTPException(status_code=404, detail="Unknown session")
+    raw = await file.read()
+    try:
+        entry = save_user_file(raw, file.filename or "upload.bin", s.root_dir)
+    except ValueError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"upload failed: {exc}") from exc
+
+    note = (
+        f"[System] User uploaded `{entry['original_name']}` → "
+        f"`{entry['virtual_path']}` ({entry['rows']} rows, columns: {entry['columns'][:8]}"
+        f"{'…' if len(entry['columns']) > 8 else ''}). "
+        "Catalog at `/uploads/_index.json`. Read per the user-uploaded-files skill."
+    )
+    s.history.append({"role": "user", "content": note})
+    return entry
 
 
 @router.post("/session/{session_id}/message")
