@@ -17,3 +17,4 @@ export { ConfirmDialog } from "./ConfirmDialog";
 export { Spinner } from "./Spinner";
 
 export * from "./form";
+export * from "./table";
