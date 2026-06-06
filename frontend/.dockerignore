@@ -1,0 +1,29 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Dependencies & build output (rebuilt inside the image)
+node_modules
+.next
+out
+dist
+build
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docs / Docker
+README.md
+Dockerfile
+.dockerignore

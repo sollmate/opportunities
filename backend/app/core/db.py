@@ -77,7 +77,15 @@ async def connect() -> None:
         return
 
     if _credential is None:
-        _credential = DefaultAzureCredential()
+        # Pass the managed identity's client id explicitly. We cannot rely on
+        # the default `AZURE_CLIENT_ID` env var here: that var is set to the
+        # Entra JWT app registration's client id (see config), so letting
+        # DefaultAzureCredential read it would make it request a token for a
+        # managed identity that doesn't exist. An empty value falls back to the
+        # system-assigned identity / local `az login` identity.
+        _credential = DefaultAzureCredential(
+            managed_identity_client_id=settings.pg_mi_client_id or None
+        )
     try:
         _pool = await asyncpg.create_pool(
             host=settings.pg_host,

@@ -1,0 +1,43 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python build / cache
+**/__pycache__
+**/*.py[cod]
+**/*$py.class
+.venv
+.venv/
+**/.venv
+venv/
+**/venv
+.uv-cache/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Tests (not needed in the runtime image)
+app/tests/
+
+# Docs / editor
+README.md
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore
