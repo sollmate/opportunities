@@ -19,3 +19,4 @@ export { Spinner } from "./Spinner";
 export { UserMenu } from "./UserMenu";
 
 export * from "./form";
+export * from "./table";

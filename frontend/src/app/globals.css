@@ -19,6 +19,7 @@
   /* Semantic */
   --sm-info: #00bcd4; /* cyan — in-progress / info / chart strokes */
   --sm-success: #84cfc0; /* mint — positive / active / live state */
+  --sm-warn: #ffe38a; /* amber — pending / unsaved / needs-attention */
   --sm-danger: #e0479e; /* magenta — danger only */
   --sm-danger-bg: rgba(224, 71, 158, 0.1); /* magenta tint — destructive hover wells */
 
@@ -43,6 +44,7 @@
   --color-primary-soft: var(--sm-primary-soft);
   --color-info: var(--sm-info);
   --color-success: var(--sm-success);
+  --color-warn: var(--sm-warn);
   --color-danger: var(--sm-danger);
   --color-danger-bg: var(--sm-danger-bg);
   --color-text: var(--sm-text);
@@ -80,6 +82,17 @@ body {
   }
 }
 
+/* soft opacity pulse — unsaved-changes dot in editable table footer */
+@keyframes sm-pulse-soft {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* user-menu popover enter */
 @keyframes um-in {
   from {
@@ -112,6 +125,27 @@ body {
 .sm-scroll::-webkit-scrollbar-thumb {
   background: var(--sm-charcoal);
   border-radius: 2px;
+}
+
+/* themed horizontal scrollbar — wide data tables */
+.sm-scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sm-charcoal) transparent;
+}
+.sm-scroll-x::-webkit-scrollbar {
+  height: 10px;
+}
+.sm-scroll-x::-webkit-scrollbar-track {
+  background: var(--sm-ink-2);
+  border-top: 1px solid var(--sm-charcoal);
+}
+.sm-scroll-x::-webkit-scrollbar-thumb {
+  background: var(--sm-charcoal);
+  border-radius: 999px;
+  border: 2px solid var(--sm-ink-2);
+}
+.sm-scroll-x::-webkit-scrollbar-thumb:hover {
+  background: var(--sm-primary);
 }
 
 /* search-match highlight */
