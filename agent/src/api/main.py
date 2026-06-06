@@ -1,9 +1,13 @@
 """FastAPI application factory."""
 import os
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.deps import get_current_user
 from src.api.routes import session
+from src.api.security import azure_scheme
 from src.config.settings import get_settings
 
 
@@ -29,14 +33,38 @@ def _export_env() -> None:
 
 _export_env()
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Warm the Entra OpenID/JWKS cache so the first authenticated request
+    # isn't slowed by discovery. Skip when Entra isn't configured (e.g. local
+    # scripts without `.env`) — otherwise discovery hits an invalid URL and
+    # the whole API fails to start. Real requests still surface a clear error
+    # when config is genuinely missing.
+    s = get_settings()
+    if s.azure_tenant_id and s.azure_client_id:
+        await azure_scheme.openid_config.load_config()
+    yield
+
+
 app = FastAPI(
-    title="Tax-Advisory Deep Agent (ADR-006 PoC)",
+    title="Tax-Advisory Deep Agent",
     description="DATEV-in → confidence-tagged advisory triggers. Decision-support only (StBerG).",
     version="0.1.0",
     docs_url="/docs",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
-app.include_router(session.router)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Every /tax-advisory/* route requires a valid Entra access token whose owner
+# holds the configured app role. /health stays public for liveness probes.
+app.include_router(session.router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health", tags=["meta"])

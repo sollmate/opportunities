@@ -387,6 +387,21 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi-azure-auth"
+version = "5.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pyjwt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6b/ee/b71456094ea84cbbf7079800b3933b9211cd6f1b70b89c3ce075ba785437/fastapi_azure_auth-5.2.0.tar.gz", hash = "sha256:8f86ef2c6d38cea12f343a0b18533026e6143c9df928ac8529a32cdbbdfe3991", size = 14620, upload-time = "2025-07-25T06:58:14.533Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/0a/1c087af39d72bb2a47e8617cf2dc6e525adfc372aaf80749d6c911eaedbb/fastapi_azure_auth-5.2.0-py3-none-any.whl", hash = "sha256:f2353ce005987b95c2f1ab82e77d44e3be6d419cb5e63b98ac4e17fdf2355b77", size = 14977, upload-time = "2025-07-25T06:58:13.175Z" },
+]
+
+[[package]]
 name = "filetype"
 version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1351,6 +1366,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyjwt"
+version = "2.13.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/81/58d0ac84e1ef3a3843791d6954d94c0b33d526c75eeb1efbce9d0a4c4077/pyjwt-2.13.0.tar.gz", hash = "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423", size = 107515, upload-time = "2026-05-21T19:54:36.618Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728", size = 31274, upload-time = "2026-05-21T19:54:35.362Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1602,6 +1626,7 @@ source = { editable = "." }
 dependencies = [
     { name = "deepagents" },
     { name = "fastapi" },
+    { name = "fastapi-azure-auth" },
     { name = "langchain-anthropic" },
     { name = "langchain-core" },
     { name = "numpy" },
@@ -1631,6 +1656,7 @@ dev = [
 requires-dist = [
     { name = "deepagents", specifier = ">=0.6.7" },
     { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "fastapi-azure-auth", specifier = ">=5" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
     { name = "langchain-anthropic", specifier = ">=0.3.0" },
     { name = "langchain-core", specifier = ">=0.3.0" },
