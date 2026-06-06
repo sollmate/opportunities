@@ -155,3 +155,80 @@ mark.sm-mark {
   padding: 0 1px;
   border-radius: 2px;
 }
+
+/* ——— login page: drifting background orbs ——— */
+@keyframes sm-orb-1 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(160px, -90px, 0) scale(1.15);
+  }
+}
+@keyframes sm-orb-2 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(-140px, 110px, 0) scale(1.1);
+  }
+}
+@keyframes sm-orb-3 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(-90px, -70px, 0) scale(0.92);
+  }
+}
+.sm-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+  pointer-events: none;
+}
+.sm-orb-lavender {
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, #c8b8f0 0%, transparent 70%);
+  left: -120px;
+  bottom: -160px;
+  opacity: 0.55;
+  animation: sm-orb-1 26s cubic-bezier(0.5, 0, 0.2, 1) infinite alternate;
+}
+.sm-orb-cyan {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, #00bcd4 0%, transparent 70%);
+  right: -80px;
+  top: -120px;
+  opacity: 0.35;
+  animation: sm-orb-2 32s cubic-bezier(0.5, 0, 0.2, 1) infinite alternate;
+}
+.sm-orb-mint {
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, #84cfc0 0%, transparent 70%);
+  right: 18%;
+  bottom: -120px;
+  opacity: 0.22;
+  animation: sm-orb-3 38s cubic-bezier(0.5, 0, 0.2, 1) infinite alternate;
+}
+.sm-grain {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    radial-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 2px;
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sm-orb {
+    animation: none !important;
+  }
+}

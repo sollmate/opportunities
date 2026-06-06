@@ -21,7 +21,7 @@
 
 .PARAMETER SecretPatterns
     Substrings (case-insensitive) that mark a key as sensitive.
-    Default: KEY, TOKEN, SECRET, PASSWORD, PASS, CONNECTIONSTRING.
+    Default: KEY, TOKEN, SECRET, PASSWORD, PASS, CONNECTIONSTRING, DATABASE_URL, CLIENT_ID.
 
 .PARAMETER DryRun
     Print what would be sent without calling az.
@@ -38,7 +38,7 @@ param(
     [Parameter(Mandatory = $true)] [string] $ResourceGroup,
     [Parameter(Mandatory = $true)] [string] $ContainerApp,
     [string] $EnvFile = ".env",
-    [string[]] $SecretPatterns = @("KEY", "TOKEN", "SECRET", "PASSWORD", "PASS", "CONNECTIONSTRING"),
+    [string[]] $SecretPatterns = @("KEY", "TOKEN", "SECRET", "PASSWORD", "PASS", "CONNECTIONSTRING", "DATABASE_URL", "CLIENT_ID"),
     [switch] $DryRun
 )
 

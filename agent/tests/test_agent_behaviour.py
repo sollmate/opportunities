@@ -22,6 +22,7 @@ from langsmith import testing as t
 from src.agent.supervisor import build_agent
 from src.config.settings import get_settings
 from src.parsers.datev_parser import parse_datev, write_ledger_json
+from src.parsers.user_files import save_user_file
 
 PROMPT = (
     "Run all applicable statutory and advisory checks over the ledger and master data, "
@@ -62,6 +63,21 @@ def _tool_calls(result: dict) -> list[str]:
     return names
 
 
+def _read_paths(result: dict) -> list[str]:
+    """Collect every path argument passed to read_file across the trajectory."""
+    paths: list[str] = []
+    for m in result["messages"]:
+        for tc in getattr(m, "tool_calls", []) or []:
+            if tc.get("name") != "read_file":
+                continue
+            args = tc.get("args") or {}
+            for key in ("file_path", "path", "filepath"):
+                if key in args:
+                    paths.append(str(args[key]))
+                    break
+    return paths
+
+
 def _try_triggerset(text: str) -> dict | None:
     """Best-effort parse of a TriggerSet JSON object out of the agent's final message."""
     cleaned = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
@@ -79,8 +95,16 @@ def _try_triggerset(text: str) -> dict | None:
     return None
 
 
+def _make_xlsx(rows: list[dict], columns: list[str]) -> bytes:
+    """Build a small Excel workbook in-memory for upload-flow tests."""
+    import pandas as pd
+    buf = __import__("io").BytesIO()
+    pd.DataFrame(rows, columns=columns).to_excel(buf, index=False)
+    return buf.getvalue()
+
+
 def _setup_root(tmp_path: Path, case: dict) -> None:
-    """Synthesize /ledger.json and /master_data.json under the sandbox root."""
+    """Synthesize /ledger.json, /master_data.json and optional /uploads/ under the sandbox root."""
     skr = case["skr"]
     rows: list[dict] = []
     if case.get("revenue") is not None:
@@ -95,6 +119,10 @@ def _setup_root(tmp_path: Path, case: dict) -> None:
 
     master = {"skr_variant": skr, **case.get("master", {})}
     Path(tmp_path, "master_data.json").write_text(json.dumps(master), encoding="utf-8")
+
+    # Optional user uploads — exercises the /uploads/ flow + user-uploaded-files skill.
+    for up in case.get("uploads", []):
+        save_user_file(up["bytes"], up["filename"], str(tmp_path))
 
 
 @pytest.fixture
@@ -192,6 +220,28 @@ CASES = [
     {"id": "TC-N2-interview", "skr": "SKR03", "revenue": 60_000,
      "master": {},  # incomplete → required fields missing → agent should ask
      "expect": {"type": "interview"}},
+
+    # ---- uploads flow (CSV) — extra context alongside the ledger ----
+    {"id": "TC-U1-upload-csv", "skr": "SKR03", "revenue": 40_000,
+     "master": {"legal_form": "Einzelunternehmen", "prior_year_net_turnover": 18_000,
+                "current_year_turnover": 40_000},
+     "uploads": [{
+         "filename": "rechnungen-q1.csv",
+         "bytes": b"Datum,Betrag,Kunde\n2025-01-15,1190.00,Acme GmbH\n2025-02-10,2380.00,Beta AG\n",
+     }],
+     "expect": {"type": "trigger", "trigger_id": "KU-19-USTG", "met": False}},
+
+    # ---- uploads flow (Excel) ----
+    {"id": "TC-U2-upload-xlsx", "skr": "SKR04", "revenue": 500_000, "assets": [60_000.0],
+     "master": {"legal_form": "GmbH", "current_year_turnover": 500_000, "prior_year_profit": 150_000},
+     "uploads": [{
+         "filename": "anlagen-2025.xlsx",
+         "bytes": _make_xlsx(
+             [{"Datum": "2025-03-01", "Bezeichnung": "Server", "Betrag": 60000.0}],
+             ["Datum", "Bezeichnung", "Betrag"],
+         ),
+     }],
+     "expect": {"type": "trigger_prefix", "prefix": "IAB-GWG-7G-ESTG"}},
 ]
 
 
@@ -239,3 +289,9 @@ def test_agent_behaviour(sandbox_root, case):
     # Soft signals — logged as feedback, don't fail the test.
     t.log_feedback(key="has_disclaimer", score=float("StBerG" in (ts.get("disclaimer") or "")))
     t.log_feedback(key="trigger_count", score=float(len(triggers)))
+
+    # If the case attached uploads, track whether the agent actually discovered them.
+    if case.get("uploads"):
+        paths = _read_paths(result)
+        discovered = any("/uploads/_index.json" in p for p in paths)
+        t.log_feedback(key="discovered_upload_index", score=float(discovered))
