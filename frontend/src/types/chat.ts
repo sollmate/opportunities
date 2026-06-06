@@ -7,12 +7,20 @@ export interface Message {
   content: string;
 }
 
+// POST /api/chat — sends one message to an existing thread; the reply streams
+// back as Server-Sent Events (see streamSSE in lib/api.ts).
 export interface ChatRequest {
-  conversation_id?: string | null;
+  thread_id: string;
+  text: string;
+}
+
+// GET /api/threads/{id}/messages
+export interface MessagesResponse {
   messages: Message[];
 }
 
-export interface ChatResponse {
-  conversation_id: string;
-  message: Message;
+// One parsed Server-Sent Event from the chat stream.
+export interface StreamEvent {
+  event: "token" | "tool_start" | "tool_end" | "final" | "error" | "done" | string;
+  data: string;
 }

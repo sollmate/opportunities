@@ -5,14 +5,15 @@ import { MessageBubble } from "./MessageBubble";
 interface MessageListProps {
   messages: Message[];
   loading: boolean;
+  toolStatus: string | null;
 }
 
-export function MessageList({ messages, loading }: MessageListProps) {
+export function MessageList({ messages, loading, toolStatus }: MessageListProps) {
   return (
     <div className="sm-scroll mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 overflow-y-auto p-6">
       {messages.length === 0 && !loading && (
         <p className="m-auto text-sm text-mute">
-          Start the conversation by sending a message.
+          Attach a DATEV export and send a message to start the conversation.
         </p>
       )}
       {messages.map((message, i) => (
@@ -20,7 +21,7 @@ export function MessageList({ messages, loading }: MessageListProps) {
       ))}
       {loading && (
         <p className="text-sm text-mute" role="status">
-          Agent is typing…
+          {toolStatus ?? "Agent is working…"}
         </p>
       )}
     </div>

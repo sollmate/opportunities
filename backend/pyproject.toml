@@ -12,6 +12,8 @@ dependencies = [
     "asyncpg>=0.30",
     "azure-identity>=1.19",
     "aiohttp>=3.10",
+    "sse-starlette>=2.0",
+    "python-multipart>=0.0.9",
 ]
 
 [dependency-groups]

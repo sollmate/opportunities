@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     # against the `roles` claim of the validated access token.
     azure_required_role: str = "opportunities.access"
 
+    # Base URL of the agent service (the standalone reasoning backend). The
+    # browser never calls it directly — this backend proxies to it, adding auth
+    # and persistence. Locally the agent runs on a different port from this API
+    # (both default to 8000), so point this at e.g. http://localhost:8001.
+    agent_base_url: str = "http://localhost:8001"
+
     # PostgreSQL connection. Authentication is password-less: a short-lived
     # Microsoft Entra token (acquired via the app's managed identity in Azure,
     # or your `az login` locally) is used as the password — so there is NO

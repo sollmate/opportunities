@@ -35,3 +35,16 @@ ALTER DEFAULT PRIVILEGES FOR ROLE oppadmin IN SCHEMA crm, advisory, ref
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "ca-opportunities-agent-api";
 ALTER DEFAULT PRIVILEGES FOR ROLE oppadmin IN SCHEMA crm, advisory, ref
   GRANT USAGE, SELECT ON SEQUENCES TO "ca-opportunities-agent-api";
+
+-- ------------------------------------------------------------
+-- chat schema (web UI thread/message persistence) — same least-privilege
+-- CRUD. Run after db/chat_schema.sql has created the schema.
+-- ------------------------------------------------------------
+GRANT USAGE ON SCHEMA chat TO "ca-opportunities-agent-api";
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON ALL TABLES IN SCHEMA chat
+  TO "ca-opportunities-agent-api";
+
+ALTER DEFAULT PRIVILEGES FOR ROLE oppadmin IN SCHEMA chat
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "ca-opportunities-agent-api";

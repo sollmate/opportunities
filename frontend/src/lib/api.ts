@@ -1,18 +1,100 @@
 import { getSession } from "next-auth/react";
 
+import type { StreamEvent } from "@/types/chat";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Attach the Entra access token (when present) to a Headers object. */
+async function withAuth(headers: Headers): Promise<Headers> {
   const session = await getSession();
-  const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
   if (session?.accessToken) {
     headers.set("Authorization", `Bearer ${session.accessToken}`);
   }
+  return headers;
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = await withAuth(new Headers(init.headers));
+  headers.set("Content-Type", "application/json");
 
   const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
   if (!res.ok) {
     throw new Error(`Request to ${path} failed (${res.status})`);
   }
   return (await res.json()) as T;
+}
+
+/**
+ * POST a multipart form (file upload). We deliberately do NOT set Content-Type
+ * so the browser adds the multipart boundary; the bearer token is still sent.
+ */
+export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  const headers = await withAuth(new Headers());
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(`Upload to ${path} failed (${res.status})`);
+  }
+  return (await res.json()) as T;
+}
+
+/**
+ * POST a JSON body and stream the Server-Sent Events response.
+ *
+ * EventSource can't send an Authorization header, so we use fetch + a
+ * ReadableStream reader and parse SSE frames by hand. This keeps the Microsoft
+ * access token on the request.
+ */
+export async function* streamSSE(
+  path: string,
+  body: unknown,
+): AsyncGenerator<StreamEvent> {
+  const headers = await withAuth(new Headers());
+  headers.set("Content-Type", "application/json");
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`Stream from ${path} failed (${res.status})`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // Frames are separated by a blank line.
+    let sep: number;
+    while ((sep = buffer.indexOf("\n\n")) !== -1) {
+      const frame = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const parsed = parseFrame(frame);
+      if (parsed) yield parsed;
+    }
+  }
+}
+
+function parseFrame(frame: string): StreamEvent | null {
+  let event = "message";
+  const dataParts: string[] = [];
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) {
+      event = line.slice("event:".length).trim();
+    } else if (line.startsWith("data:")) {
+      dataParts.push(line.slice("data:".length).replace(/^ /, ""));
+    }
+  }
+  if (dataParts.length === 0 && event === "message") return null;
+  return { event, data: dataParts.join("\n") };
 }

@@ -1,20 +1,57 @@
+"""Streaming chat endpoint.
+
+Relays the agent service's SSE stream (token / tool_start / tool_end / final /
+error / done) to the browser, while persisting the user message up front and the
+assistant's final reply once it arrives. Auth and ownership are enforced before
+any agent call.
+"""
+
+import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from sse_starlette.sse import EventSourceResponse
 
-from app.api.deps import get_agent_service, get_current_user
-from app.schemas.chat import ChatRequest, ChatResponse
-from app.services.agent import AgentService, new_conversation_id
+from app.api.deps import get_access_token, get_agent_service, get_current_user
+from app.schemas.chat import ChatRequest
+from app.services import threads_store
+from app.services.agent import AgentError, AgentService
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@router.post("", response_model=ChatResponse)
+@router.post("")
 async def chat(
     request: ChatRequest,
-    _user: Annotated[str, Depends(get_current_user)],
+    user_id: Annotated[str, Depends(get_current_user)],
     agent: Annotated[AgentService, Depends(get_agent_service)],
-) -> ChatResponse:
-    conversation_id = request.conversation_id or new_conversation_id()
-    message = await agent.generate_reply(request.messages, conversation_id)
-    return ChatResponse(conversation_id=conversation_id, message=message)
+    access_token: Annotated[str, Depends(get_access_token)],
+):
+    agent_session_id = await threads_store.get_agent_session_id(user_id, request.thread_id)
+    if agent_session_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown thread")
+
+    await threads_store.add_message(request.thread_id, "user", request.text)
+    await threads_store.touch_thread(request.thread_id, "in_progress")
+
+    async def event_generator():
+        final_content = ""
+        try:
+            async for event, data in agent.stream_message(
+                agent_session_id, request.text, access_token
+            ):
+                if event == "final":
+                    try:
+                        final_content = json.loads(data).get("content", "")
+                    except (json.JSONDecodeError, AttributeError):
+                        final_content = data
+                yield {"event": event, "data": data}
+        except AgentError as exc:
+            yield {"event": "error", "data": json.dumps({"error": str(exc)})}
+        finally:
+            # Persist whatever the assistant produced, even on early disconnect.
+            if final_content:
+                await threads_store.add_message(request.thread_id, "assistant", final_content)
+            await threads_store.touch_thread(request.thread_id, "idle")
+
+    return EventSourceResponse(event_generator())

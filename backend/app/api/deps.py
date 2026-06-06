@@ -1,19 +1,30 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi_azure_auth.user import User
 
 from app.core.config import settings
 from app.core.security import azure_scheme
-from app.services.agent import AgentService, EchoAgentService
+from app.services.agent import AgentClient, AgentService
 
-# Single instance of the agent. Swap EchoAgentService for the real
-# implementation here when it is ready — this is the only line that changes.
-_agent_service: AgentService = EchoAgentService()
+# Single client for the agent service, pointed at the configured base URL.
+_agent_service: AgentService = AgentClient(settings.agent_base_url)
 
 
 def get_agent_service() -> AgentService:
     return _agent_service
+
+
+def get_access_token(request: Request) -> str:
+    """Extract the raw Entra bearer token from the incoming Authorization header.
+
+    The token has already been validated by `azure_scheme` (via
+    `get_current_user`); this only pulls the value back out so the backend can
+    forward it to the agent service, which shares the same app registration and
+    validates the token independently. Returns "" if absent.
+    """
+    auth = request.headers.get("Authorization", "")
+    return auth[7:] if auth[:7].lower() == "bearer " else ""
 
 
 def get_current_user(

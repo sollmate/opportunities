@@ -1,80 +1,63 @@
-"""Thread history endpoint.
+"""Thread endpoints: create (by uploading a DATEV export), list, and history.
 
-NOTE: this is a STUB. It returns static placeholder threads so the frontend
-sidebar can be developed end to end. Real thread persistence (storage, per-user
-scoping, the agent's own thread lifecycle) is owned by the agent backend
-deliverable. Replace `_stub_threads()` with a real query when that lands; the
-response contract (ThreadListResponse) is the seam and should not change.
+A thread is created by uploading a DATEV export, which the backend proxies to
+the agent service to open a session. The thread (with its agent session id) and
+all messages are persisted in Postgres, scoped to the signed-in user.
 """
 
-from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.api.deps import get_current_user
+from app.api.deps import get_access_token, get_agent_service, get_current_user
+from app.schemas.chat import MessagesResponse
 from app.schemas.thread import Thread, ThreadListResponse
+from app.services import threads_store
+from app.services.agent import AgentError, AgentService
 
 router = APIRouter(prefix="/threads", tags=["threads"])
 
 
-def _stub_threads() -> list[Thread]:
-    now = datetime.now(UTC)
-    hour = timedelta(hours=1)
-    day = timedelta(days=1)
-    return [
-        Thread(
-            id="t-cash-runway",
-            title="Cash & runway — May review",
-            preview="Cash closed May at €4.82M — up €148K on April. Runway holding at 11.4 months.",
-            status="idle",
-            updatedAt=now - 2 * hour,
-            turnCount=8,
-        ),
-        Thread(
-            id="t-vat-recon",
-            title="May VAT reconciliation",
-            preview=(
-                "1,284 lines reconciled. Two intercompany lines flagged — apply reverse-charge?"
-            ),
-            status="awaiting_input",
-            updatedAt=now - 3 * hour,
-        ),
-        Thread(
-            id="t-board-pack",
-            title="Q1 board pack — cover note",
-            preview="Drafted the narrative on margin recovery and the SAP renegotiation outcome.",
-            status="draft",
-            updatedAt=now - 5 * hour,
-        ),
-        Thread(
-            id="t-recurring-jes",
-            title="Posted 38 recurring JEs for April",
-            preview=(
-                "All recurring accruals posted to GL — payroll, depreciation, and SaaS prepaids."
-            ),
-            status="idle",
-            updatedAt=now - (day + 2 * hour),
-            turnCount=38,
-        ),
-        Thread(
-            id="t-nw-logistics",
-            title="NW Logistics overdue — chase strategy",
-            status="idle",
-            updatedAt=now - 4 * day,
-            turnCount=6,
-        ),
-        Thread(
-            id="t-sap-licence",
-            title="SAP licence renegotiation memo",
-            status="draft",
-            updatedAt=now - 6 * day,
-        ),
-    ]
+@router.post("", response_model=Thread)
+async def create_thread(
+    user_id: Annotated[str, Depends(get_current_user)],
+    agent: Annotated[AgentService, Depends(get_agent_service)],
+    access_token: Annotated[str, Depends(get_access_token)],
+    datev_file: Annotated[UploadFile, File(description="DATEV EXTF CSV or Excel")],
+    master_data_file: Annotated[
+        UploadFile | None, File(description="Optional master-data JSON")
+    ] = None,
+) -> Thread:
+    datev_bytes = await datev_file.read()
+    master_bytes = await master_data_file.read() if master_data_file else None
+    try:
+        session_id = await agent.create_session(
+            datev_filename=datev_file.filename or "upload.csv",
+            datev_bytes=datev_bytes,
+            master_filename=master_data_file.filename if master_data_file else None,
+            master_bytes=master_bytes,
+            access_token=access_token,
+        )
+    except AgentError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    title = datev_file.filename or "New chat"
+    return await threads_store.create_thread(user_id, session_id, title)
 
 
 @router.get("", response_model=ThreadListResponse)
 async def list_threads(
-    _user: Annotated[str, Depends(get_current_user)],
+    user_id: Annotated[str, Depends(get_current_user)],
 ) -> ThreadListResponse:
-    return ThreadListResponse(threads=_stub_threads())
+    return ThreadListResponse(threads=await threads_store.list_threads(user_id))
+
+
+@router.get("/{thread_id}/messages", response_model=MessagesResponse)
+async def thread_messages(
+    thread_id: str,
+    user_id: Annotated[str, Depends(get_current_user)],
+) -> MessagesResponse:
+    thread = await threads_store.get_thread(user_id, thread_id)
+    if thread is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown thread")
+    return MessagesResponse(messages=await threads_store.list_messages(thread_id))

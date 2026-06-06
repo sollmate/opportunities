@@ -13,14 +13,17 @@ class Message(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    """Incoming chat request: the conversation so far."""
+    """Incoming chat request: a new message for an existing thread.
 
-    conversation_id: str | None = None
-    messages: list[Message] = Field(..., min_length=1)
+    The reply is streamed back as Server-Sent Events, so there is no JSON
+    response body.
+    """
+
+    thread_id: str
+    text: str = Field(..., min_length=1)
 
 
-class ChatResponse(BaseModel):
-    """The agent's reply for a conversation."""
+class MessagesResponse(BaseModel):
+    """Persisted history for a thread (GET /api/threads/{id}/messages)."""
 
-    conversation_id: str
-    message: Message
+    messages: list[Message]

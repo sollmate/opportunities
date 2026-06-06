@@ -6,28 +6,53 @@ Our opportunities agent turns the tax advisor's data into foresight. By continuo
 
 ## Repository layout
 
-This is a monorepo with two services:
+This is a monorepo with three services:
 
 ```
-backend/    FastAPI service exposing the chat REST API
+agent/      FastAPI service: DATEV-in → streamed advisory reasoning (the agent)
+backend/    FastAPI service: auth + Postgres persistence + gateway to the agent
 frontend/   Next.js (App Router) chat interface
 ```
 
-The agent's reasoning logic is developed separately. This repo provides the
-**scaffolding** around it: the chat API surface, an `AgentService` seam where the
-real agent is dropped in, auth stubs, and the web chat UI.
+The browser talks only to `backend/`, which enforces Microsoft Entra auth,
+persists threads/messages in Postgres, and proxies to `agent/` (which has no auth
+of its own). A chat starts by uploading a DATEV export; the agent's reasoning is
+streamed back to the UI over Server-Sent Events.
+
+```
+frontend  ──Bearer──▶  backend  ──proxy──▶  agent
+                          │
+                          └──▶ Azure Postgres (chat schema)
+```
 
 ## Quick start
+
+### Agent
+
+```bash
+cd agent
+cp .env.example .env        # set ANTHROPIC_API_KEY
+uv sync
+uv run uvicorn src.api.main:app --port 8001
+# Agent on http://localhost:8001  (docs at /docs)
+```
 
 ### Backend
 
 ```bash
 cd backend
-cp .env.example .env
+cp .env.example .env        # set AGENT_BASE_URL=http://localhost:8001, AZURE_*, PG_*
 uv sync
 uv run uvicorn app.main:app --reload
 # API on http://localhost:8000  (docs at /docs)
 ```
+
+The agent and backend both default to port 8000, so run the agent on a
+different port (8001 above) and point `AGENT_BASE_URL` at it.
+
+Chat persistence lives in the `chat` schema — apply `db/chat_schema.sql`
+(and the `chat` grants in `db/grant_managed_identity.sql`) to the
+`opportunities_poc` database before chatting.
 
 ### Frontend
 
@@ -40,9 +65,9 @@ npm run dev
 ```
 
 Sign in with a Microsoft account from your tenant (see **Authentication** below
-for the required Entra ID configuration), then chat. The default
-`EchoAgentService` replies by echoing your message — replace it with the real
-agent (see `backend/app/services/agent.py`).
+for the required Entra ID configuration), attach a DATEV export (CSV/Excel) in
+the chat to start a thread, then chat. A sample ledger lives at
+`agent/tests/fixtures/tc01_kleinunternehmer_under.csv`.
 
 ## Authentication
 
@@ -76,7 +101,9 @@ Note the **Tenant ID** and **Client ID** (and client secret) and fill them into
 
 ## The agent seam
 
-`backend/app/services/agent.py` defines the `AgentService` protocol and a stub
-`EchoAgentService`. To plug in the real agent, implement `AgentService` and return
-it from `get_agent_service()` in `backend/app/api/deps.py`. Nothing else needs to
-change — the transport, schemas, auth, and UI stay the same.
+`backend/app/services/agent.py` defines the `AgentService` protocol and the
+`AgentClient` that talks to the agent service over HTTP (`create_session` for the
+DATEV upload, `stream_message` for the SSE reply stream). It is constructed from
+`AGENT_BASE_URL` and returned by `get_agent_service()` in
+`backend/app/api/deps.py`. The chat route streams whatever the agent emits and
+persists the final reply; the threads route persists the thread on upload.

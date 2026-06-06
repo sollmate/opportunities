@@ -15,7 +15,12 @@ export default function ChatPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const threads = useThreads();
-  const chat = useChat();
+  const chat = useChat({
+    onThreadCreated: (thread) => {
+      threads.reload();
+      threads.setActiveId(thread.id);
+    },
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -41,7 +46,7 @@ export default function ChatPage() {
 
   function handleSelect(id: string) {
     threads.setActiveId(id);
-    chat.openConversation(id);
+    void chat.openConversation(id);
   }
 
   function handleLogout() {
@@ -75,9 +80,11 @@ export default function ChatPage() {
         </header>
         <ChatWindow
           messages={chat.messages}
-          send={chat.send}
+          send={chat.submit}
           loading={chat.loading}
+          toolStatus={chat.toolStatus}
           error={chat.error}
+          requireFile={chat.conversationId === null}
         />
       </main>
     </div>
