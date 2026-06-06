@@ -38,18 +38,50 @@ export function ConfirmDialog({
   const [focused, setFocused] = useState(false);
   const [mounted, setMounted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  // Keep the latest onCancel reachable without retriggering the focus effect.
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
 
   // Portals need the DOM; only render after mount (also guards SSR).
   useEffect(() => setMounted(true), []);
 
+  // Once the portal content exists, move focus into the modal, trap Tab within
+  // it, and restore focus to the trigger when it closes.
   useEffect(() => {
+    if (!mounted) return;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
     inputRef.current?.focus();
+
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") {
+        onCancelRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
+
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previouslyFocused.current?.focus?.();
+    };
+  }, [mounted]);
 
   if (!mounted) return null;
 
@@ -65,11 +97,12 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-label={title ?? `Delete ${subject}?`}
       onClick={onCancel}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-[380px] rounded-2xl border border-charcoal bg-ink p-[22px] shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
+        className="w-full max-w-[380px] rounded-2xl border border-charcoal bg-ink p-[22px] shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
       >
         <div className="mb-1.5 flex items-center justify-between">
           <h4 className="m-0 font-display text-[17px] font-bold tracking-[-0.01em] text-text">
