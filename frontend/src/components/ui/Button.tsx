@@ -1,7 +1,13 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
+import { Spinner } from "./Spinner";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "text";
 export type ButtonShape = "rounded" | "pill";
 export type ButtonSize = "sm" | "md";
 
@@ -11,6 +17,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   /** Chip/toggle selected state — only meaningful for shape="pill". */
   selected?: boolean;
+  /** Shows a spinner and disables the button while an action is in flight. */
+  loading?: boolean;
 }
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -24,6 +32,8 @@ const VARIANT: Record<ButtonVariant, string> = {
   ghost: "bg-transparent text-primary font-medium hover:text-primary-deep",
   // Solid magenta — destructive emphasis.
   danger: "bg-danger text-white font-semibold hover:brightness-110",
+  // Borderless muted text — neutral low-emphasis action (e.g. "← Back").
+  text: "bg-transparent text-mute font-medium hover:text-text",
 };
 
 const SIZE: Record<ButtonSize, string> = {
@@ -42,6 +52,8 @@ export function Button({
   shape = "rounded",
   size = "md",
   selected = false,
+  loading = false,
+  disabled,
   className,
   type = "button",
   children,
@@ -53,6 +65,8 @@ export function Button({
     <button
       type={type}
       aria-pressed={isPill ? selected : undefined}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
       className={cn(
         "inline-flex flex-none cursor-pointer items-center justify-center gap-2 font-sans transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         isPill ? "rounded-full" : "rounded-lg",
@@ -67,6 +81,7 @@ export function Button({
       )}
       {...rest}
     >
+      {loading && <Spinner size={size === "sm" ? 12 : 14} />}
       {children}
     </button>
   );
